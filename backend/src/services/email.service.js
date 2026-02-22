@@ -13,6 +13,8 @@ const getTransporter = () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      // Force IPv4 — Railway nodes may lack IPv6 routes to Google SMTP
+      family: 4,
     });
   }
   return transporter;

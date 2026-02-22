@@ -24,6 +24,9 @@ require('./cron/scheduler');
 
 const app = express();
 
+// Trust Railway / Netlify / Heroku reverse proxy (required for rate-limit + req.ip accuracy)
+app.set('trust proxy', 1);
+
 // ── Security Middleware ────────────────────────────────────────────────────
 app.use(helmet({
   hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
