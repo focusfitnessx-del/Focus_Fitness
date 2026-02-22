@@ -16,6 +16,15 @@ const getTransporter = () => {
       // Force IPv4 — Railway nodes may lack IPv6 routes to Google SMTP
       family: 4,
     });
+
+    // Verify SMTP connection on first use and log the result immediately
+    transporter.verify((err) => {
+      if (err) {
+        logger.error(`[Email] SMTP connection FAILED: ${err.message}`);
+      } else {
+        logger.info('[Email] SMTP connection OK — ready to send.');
+      }
+    });
   }
   return transporter;
 };
@@ -25,7 +34,7 @@ const getTransporter = () => {
  */
 const sendEmail = async ({ to, subject, text, html }) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    logger.warn(`[Email] Not configured. Would send to ${to}: ${subject}`);
+    logger.warn(`[Email] EMAIL_USER/EMAIL_PASS not set — skipping send to ${to}`);
     return { skipped: true };
   }
 
