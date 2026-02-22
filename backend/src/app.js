@@ -1,6 +1,9 @@
 require('dotenv').config();
 process.env.TZ = 'Asia/Colombo';
 
+// Force IPv4 DNS resolution — Node 18+ defaults to IPv6 which breaks Railway SMTP
+require('dns').setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
