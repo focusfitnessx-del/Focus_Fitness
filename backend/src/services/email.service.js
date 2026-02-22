@@ -1,59 +1,38 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 const logger = require('../utils/logger');
 
-let transporter = null;
-
-const getTransporter = () => {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: process.env.EMAIL_SECURE === 'true',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      family: 4,
-    });
-  }
-  return transporter;
-};
-
-// Verify SMTP at startup so Railway logs immediately show if email is working
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  logger.info(`[Email] Checking SMTP with user: ${process.env.EMAIL_USER}`);
-  getTransporter().verify((err) => {
-    if (err) {
-      logger.error(`[Email] SMTP FAILED: ${err.message}`);
-    } else {
-      logger.info('[Email] SMTP OK — ready to send.');
-    }
-  });
+// Verify email config at startup
+if (process.env.RESEND_API_KEY) {
+  logger.info('[Email] Resend API key found — ready to send.');
 } else {
-  logger.warn('[Email] EMAIL_USER or EMAIL_PASS not configured — emails will be skipped.');
+  logger.warn('[Email] RESEND_API_KEY not set — emails will be skipped.');
 }
 
-/**
- * Send a plain-text or HTML email.
- */
 const sendEmail = async ({ to, subject, text, html }) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    logger.warn(`[Email] EMAIL_USER/EMAIL_PASS not set — skipping send to ${to}`);
+  if (!process.env.RESEND_API_KEY) {
+    logger.warn(`[Email] RESEND_API_KEY not set — skipping send to ${to}`);
     return { skipped: true };
   }
 
-  const transport = getTransporter();
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || 'Focus Fitness <noreply@focusfitness.lk>',
-    to,
-    subject,
-    text,
-    ...(html && { html }),
-  };
+  const res = await axios.post(
+    'https://api.resend.com/emails',
+    {
+      from: process.env.EMAIL_FROM || 'Focus Fitness <onboarding@resend.dev>',
+      to,
+      subject,
+      text,
+      ...(html && { html }),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
 
-  const info = await transport.sendMail(mailOptions);
-  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${info.messageId}`);
-  return { messageId: info.messageId };
+  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | id: ${res.data.id}`);
+  return { messageId: res.data.id };
 };
 
 // ── Email Templates ────────────────────────────────────────────────────────
