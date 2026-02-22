@@ -23,9 +23,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('ff_token')
-      localStorage.removeItem('ff_user')
-      window.location.href = '/login'
+      const url = error.config?.url || ''
+      // Only force-logout for actual auth endpoints, not business logic routes
+      // (e.g. email errors can bubble up a 401 from upstream APIs)
+      const isAuthRoute = url.includes('/auth/')
+      const isGlobalAuthError = error.response?.data?.message?.toLowerCase().includes('token')
+      if (isAuthRoute || isGlobalAuthError) {
+        localStorage.removeItem('ff_token')
+        localStorage.removeItem('ff_user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

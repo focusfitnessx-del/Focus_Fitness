@@ -41,13 +41,20 @@ const sendEmail = async ({ to, subject, text, html }) => {
     .replace(/\//g, '_')
     .replace(/=+$/, '');
 
-  const res = await getGmailClient().users.messages.send({
-    userId: 'me',
-    requestBody: { raw },
-  });
-
-  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${res.data.id}`);
-  return { messageId: res.data.id };
+  try {
+    const res = await getGmailClient().users.messages.send({
+      userId: 'me',
+      requestBody: { raw },
+    });
+    logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${res.data.id}`);
+    return { messageId: res.data.id };
+  } catch (gmailErr) {
+    // Strip Google API status codes (e.g. 401 for bad OAuth token) so they
+    // don't propagate to the frontend as auth errors that trigger logout.
+    const msg = gmailErr.message || 'Gmail API error';
+    logger.error(`[Email] Gmail API error sending to ${to}: ${msg}`);
+    throw new Error(`Email delivery failed: ${msg}`);
+  }
 };
 
 // ── Email Templates ────────────────────────────────────────────────────────
