@@ -62,16 +62,4 @@ const validateId = (paramName = 'id') => (req, res, next) => {
   next();
 };
 
-/**
- * Protects the hardware device entry endpoint with a shared API key.
- * Requires X-Device-Key header matching DEVICE_API_KEY env var.
- */
-const deviceKeyAuth = (req, res, next) => {
-  const deviceKey = req.headers['x-device-key'];
-  if (!process.env.DEVICE_API_KEY || !deviceKey || deviceKey !== process.env.DEVICE_API_KEY) {
-    return next(createError(401, 'Valid device key required.'));
-  }
-  next();
-};
-
-module.exports = { authenticate, authorize, validateId, deviceKeyAuth };
+module.exports = { authenticate, authorize, validateId };
