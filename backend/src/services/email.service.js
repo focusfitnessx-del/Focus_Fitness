@@ -6,36 +6,37 @@ let transporter = null;
 const getTransporter = () => {
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.EMAIL_PORT || '587'),
-      secure: false,
+      service: 'gmail',
       auth: {
+        type: 'OAuth2',
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
       },
     });
   }
   return transporter;
 };
 
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  logger.info(`[Email] SMTP configured with host: ${process.env.EMAIL_HOST || 'smtp-relay.brevo.com'}`);
+if (process.env.EMAIL_USER && process.env.GMAIL_REFRESH_TOKEN) {
+  logger.info(`[Email] Gmail OAuth2 configured for: ${process.env.EMAIL_USER}`);
   getTransporter().verify((err) => {
-    if (err) logger.error(`[Email] SMTP FAILED: ${err.message}`);
-    else logger.info('[Email] SMTP OK — ready to send.');
+    if (err) logger.error(`[Email] Gmail OAuth2 FAILED: ${err.message}`);
+    else logger.info('[Email] Gmail OAuth2 OK — ready to send.');
   });
 } else {
-  logger.warn('[Email] EMAIL_USER or EMAIL_PASS not set — emails will be skipped.');
+  logger.warn('[Email] Gmail OAuth2 not configured — emails will be skipped.');
 }
 
 const sendEmail = async ({ to, subject, text, html }) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!process.env.EMAIL_USER || !process.env.GMAIL_REFRESH_TOKEN) {
     logger.warn(`[Email] Not configured — skipping send to ${to}`);
     return { skipped: true };
   }
 
   const info = await getTransporter().sendMail({
-    from: process.env.EMAIL_FROM || 'Focus Fitness <noreply@focusfitness.lk>',
+    from: process.env.EMAIL_FROM || `Focus Fitness <${process.env.EMAIL_USER}>`,
     to,
     subject,
     text,
