@@ -14,4 +14,4 @@ RUN npx prisma generate --schema=prisma/schema.prisma && npm prune --omit=dev
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && node src/app.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && node prisma/seed.js && node src/app.js"]
