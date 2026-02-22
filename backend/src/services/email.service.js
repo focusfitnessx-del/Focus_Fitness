@@ -25,10 +25,11 @@ const sendEmail = async ({ to, subject, text, html }) => {
 
   const from = process.env.EMAIL_FROM || `Focus Fitness <${process.env.EMAIL_USER}>`;
   const body = html || text;
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`;
   const mimeMessage = [
     `From: ${from}`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodedSubject}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
     '',
