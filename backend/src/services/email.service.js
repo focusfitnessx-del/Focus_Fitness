@@ -1,33 +1,21 @@
-const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 const logger = require('../utils/logger');
 
-let transporter = null;
-
-const getTransporter = () => {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        type: 'OAuth2',
-        user: process.env.EMAIL_USER,
-        clientId: process.env.GMAIL_CLIENT_ID,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      },
-    });
-  }
-  return transporter;
-};
-
 if (process.env.EMAIL_USER && process.env.GMAIL_REFRESH_TOKEN) {
-  logger.info(`[Email] Gmail OAuth2 configured for: ${process.env.EMAIL_USER}`);
-  getTransporter().verify((err) => {
-    if (err) logger.error(`[Email] Gmail OAuth2 FAILED: ${err.message}`);
-    else logger.info('[Email] Gmail OAuth2 OK — ready to send.');
-  });
+  logger.info(`[Email] Gmail API (HTTP) configured for: ${process.env.EMAIL_USER}`);
 } else {
-  logger.warn('[Email] Gmail OAuth2 not configured — emails will be skipped.');
+  logger.warn('[Email] Gmail API not configured — emails will be skipped.');
 }
+
+const getGmailClient = () => {
+  const auth = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  );
+  auth.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+  return google.gmail({ version: 'v1', auth });
+};
 
 const sendEmail = async ({ to, subject, text, html }) => {
   if (!process.env.EMAIL_USER || !process.env.GMAIL_REFRESH_TOKEN) {
@@ -35,16 +23,31 @@ const sendEmail = async ({ to, subject, text, html }) => {
     return { skipped: true };
   }
 
-  const info = await getTransporter().sendMail({
-    from: process.env.EMAIL_FROM || `Focus Fitness <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    text,
-    ...(html && { html }),
+  const from = process.env.EMAIL_FROM || `Focus Fitness <${process.env.EMAIL_USER}>`;
+  const body = html || text;
+  const mimeMessage = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    body,
+  ].join('\r\n');
+
+  const raw = Buffer.from(mimeMessage)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const res = await getGmailClient().users.messages.send({
+    userId: 'me',
+    requestBody: { raw },
   });
 
-  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${info.messageId}`);
-  return { messageId: info.messageId };
+  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${res.data.id}`);
+  return { messageId: res.data.id };
 };
 
 // ── Email Templates ────────────────────────────────────────────────────────
