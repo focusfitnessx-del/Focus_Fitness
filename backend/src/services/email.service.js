@@ -1,38 +1,49 @@
-const axios = require('axios');
+const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
 
-// Verify email config at startup
-if (process.env.RESEND_API_KEY) {
-  logger.info('[Email] Resend API key found — ready to send.');
+let transporter = null;
+
+const getTransporter = () => {
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  }
+  return transporter;
+};
+
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  logger.info(`[Email] SMTP configured with host: ${process.env.EMAIL_HOST || 'smtp-relay.brevo.com'}`);
+  getTransporter().verify((err) => {
+    if (err) logger.error(`[Email] SMTP FAILED: ${err.message}`);
+    else logger.info('[Email] SMTP OK — ready to send.');
+  });
 } else {
-  logger.warn('[Email] RESEND_API_KEY not set — emails will be skipped.');
+  logger.warn('[Email] EMAIL_USER or EMAIL_PASS not set — emails will be skipped.');
 }
 
 const sendEmail = async ({ to, subject, text, html }) => {
-  if (!process.env.RESEND_API_KEY) {
-    logger.warn(`[Email] RESEND_API_KEY not set — skipping send to ${to}`);
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    logger.warn(`[Email] Not configured — skipping send to ${to}`);
     return { skipped: true };
   }
 
-  const res = await axios.post(
-    'https://api.resend.com/emails',
-    {
-      from: process.env.EMAIL_FROM || 'Focus Fitness <onboarding@resend.dev>',
-      to,
-      subject,
-      text,
-      ...(html && { html }),
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+  const info = await getTransporter().sendMail({
+    from: process.env.EMAIL_FROM || 'Focus Fitness <noreply@focusfitness.lk>',
+    to,
+    subject,
+    text,
+    ...(html && { html }),
+  });
 
-  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | id: ${res.data.id}`);
-  return { messageId: res.data.id };
+  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${info.messageId}`);
+  return { messageId: info.messageId };
 };
 
 // ── Email Templates ────────────────────────────────────────────────────────
