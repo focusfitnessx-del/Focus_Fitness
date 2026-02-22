@@ -1,0 +1,143 @@
+// This is your Prisma schema file
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  TRAINER
+}
+
+enum MemberStatus {
+  ACTIVE
+  EXPIRED
+}
+
+enum ReminderType {
+  PAYMENT_DUE
+  BIRTHDAY
+}
+
+enum ReminderChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum ReminderStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+// ─────────────────────────────────────────────
+// User (Staff)
+// ─────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(TRAINER)
+  isActive  Boolean  @default(true)
+  gymId     String?  // reserved for multi-branch upgrade
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  Payment[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// Member
+// ─────────────────────────────────────────────
+
+model Member {
+  id               String       @id @default(uuid())
+  fullName         String
+  nic              String?      @unique
+  email            String?      @unique
+  phone            String
+  birthday         DateTime?
+  medicalNotes     String?
+  emergencyContact String?
+  joinDate         DateTime     @default(now())
+  status           MemberStatus @default(ACTIVE)
+  dueDate          DateTime
+  gymId            String?      // reserved for multi-branch upgrade
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  payments         Payment[]
+  reminders        ReminderLog[]
+
+  @@map("members")
+}
+
+// ─────────────────────────────────────────────
+// Payment
+// ─────────────────────────────────────────────
+
+model Payment {
+  id            String   @id @default(uuid())
+  receiptNumber String   @unique
+  memberId      String?
+  month         Int      // 1-12
+  year          Int
+  amount        Decimal  @db.Decimal(10, 2)
+  paidDate      DateTime @default(now())
+  collectedById String
+  notes         String?
+  gymId         String?  // reserved for multi-branch upgrade
+  createdAt     DateTime @default(now())
+
+  member        Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  collectedBy   User     @relation(fields: [collectedById], references: [id])
+
+  @@unique([memberId, month, year])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────
+// Reminder Log
+// ─────────────────────────────────────────────
+
+model ReminderLog {
+  id        String          @id @default(uuid())
+  memberId  String
+  type      ReminderType
+  channel   ReminderChannel
+  status    ReminderStatus
+  message   String?
+  error     String?
+  sentAt    DateTime        @default(now())
+
+  member    Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("reminder_logs")
+}
+
+// ─────────────────────────────────────────────
+// System Settings
+// ─────────────────────────────────────────────
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
