@@ -30,8 +30,9 @@ app.use(helmet({
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
-const allowedOrigin = process.env.CORS_ORIGIN ||
-  (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : null);
+const allowedOrigin = (process.env.CORS_ORIGIN ||
+  (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : null))
+  ?.replace(/\/$/, ''); // strip accidental trailing slash
 if (!allowedOrigin) {
   throw new Error('CORS_ORIGIN env var must be set in production');
 }
