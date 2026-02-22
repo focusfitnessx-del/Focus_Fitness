@@ -13,21 +13,25 @@ const getTransporter = () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      // Force IPv4 — Railway nodes may lack IPv6 routes to Google SMTP
       family: 4,
-    });
-
-    // Verify SMTP connection on first use and log the result immediately
-    transporter.verify((err) => {
-      if (err) {
-        logger.error(`[Email] SMTP connection FAILED: ${err.message}`);
-      } else {
-        logger.info('[Email] SMTP connection OK — ready to send.');
-      }
     });
   }
   return transporter;
 };
+
+// Verify SMTP at startup so Railway logs immediately show if email is working
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  logger.info(`[Email] Checking SMTP with user: ${process.env.EMAIL_USER}`);
+  getTransporter().verify((err) => {
+    if (err) {
+      logger.error(`[Email] SMTP FAILED: ${err.message}`);
+    } else {
+      logger.info('[Email] SMTP OK — ready to send.');
+    }
+  });
+} else {
+  logger.warn('[Email] EMAIL_USER or EMAIL_PASS not configured — emails will be skipped.');
+}
 
 /**
  * Send a plain-text or HTML email.
@@ -48,7 +52,7 @@ const sendEmail = async ({ to, subject, text, html }) => {
   };
 
   const info = await transport.sendMail(mailOptions);
-  logger.info(`[Email] Sent to ${to} | MessageId: ${info.messageId}`);
+  logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${info.messageId}`);
   return { messageId: info.messageId };
 };
 
