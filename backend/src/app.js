@@ -4,6 +4,7 @@ process.env.TZ = 'Asia/Colombo';
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 
 const { errorHandler } = require('./middleware/errorHandler');
@@ -24,9 +25,19 @@ require('./cron/scheduler');
 const app = express();
 
 // ── Security Middleware ────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
+
+const allowedOrigin = process.env.CORS_ORIGIN ||
+  (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : null);
+if (!allowedOrigin) {
+  throw new Error('CORS_ORIGIN env var must be set in production');
+}
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: allowedOrigin,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -46,11 +57,12 @@ const authLimiter = rateLimit({
 
 app.use(limiter);
 app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(hpp());
 
 // ── Health Check ───────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'Focus Fitness API' });
+  res.json({ status: 'ok' });
 });
 
 // ── API Routes ─────────────────────────────────────────────────────────────

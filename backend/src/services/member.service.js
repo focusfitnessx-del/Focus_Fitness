@@ -17,14 +17,18 @@ const buildDueDate = () => {
 };
 
 const listMembers = async ({ status, search, page = 1, limit = 20 }) => {
+  const safePage = Math.max(1, parseInt(page) || 1);
+  const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const safeSearch = search ? String(search).slice(0, 100) : undefined;
+
   const where = {
     ...(status && { status }),
-    ...(search && {
+    ...(safeSearch && {
       OR: [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search } },
-        { nic: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
+        { fullName: { contains: safeSearch, mode: 'insensitive' } },
+        { phone: { contains: safeSearch } },
+        { nic: { contains: safeSearch, mode: 'insensitive' } },
+        { email: { contains: safeSearch, mode: 'insensitive' } },
       ],
     }),
   };
@@ -34,12 +38,12 @@ const listMembers = async ({ status, search, page = 1, limit = 20 }) => {
     prisma.member.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: Number(limit),
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
     }),
   ]);
 
-  return { total, page: Number(page), limit: Number(limit), members };
+  return { total, page: safePage, limit: safeLimit, members };
 };
 
 const getMemberById = async (id) => {

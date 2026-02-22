@@ -1,14 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const entryController = require('../controllers/entry.controller');
-const { authenticate } = require('../middleware/auth.middleware');
+const { authenticate, validateId, deviceKeyAuth } = require('../middleware/auth.middleware');
 
-// Entry check can be called by the hardware device (no auth) 
-// or from the frontend (with auth). We use authenticate to protect the frontend endpoint.
-router.get('/check/:memberId', authenticate, entryController.checkEntry);
+router.get('/check/:memberId', authenticate, validateId('memberId'), entryController.checkEntry);
 
-// Unprotected endpoint for hardware device integration (future use)
-// Secured by a device token in production - this is a placeholder
-router.get('/device/check/:memberId', entryController.checkEntry);
+// Hardware device endpoint — secured by X-Device-Key header (set DEVICE_API_KEY in .env)
+router.get('/device/check/:memberId', deviceKeyAuth, validateId('memberId'), entryController.checkEntry);
 
 module.exports = router;
