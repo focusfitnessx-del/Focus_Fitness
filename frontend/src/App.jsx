@@ -29,13 +29,8 @@ function AppRoutes() {
   const { user, loading } = useAuth()
   return (
     <Routes>
-      {/* Public landing */}
-      <Route
-        path="/"
-        element={
-          loading ? <Spinner /> : user ? <Navigate to="/dashboard" replace /> : <LandingPage />
-        }
-      />
+      {/* Public landing — always accessible */}
+      <Route path="/" element={loading ? <Spinner /> : <LandingPage />} />
       <Route path="/login" element={user && !loading ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
 
       {/* Protected app — pathless layout wrapper */}

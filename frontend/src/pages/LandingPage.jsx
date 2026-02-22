@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
-import { Phone, MapPin, Clock, ArrowRight, Check, ChevronDown, MessageCircle } from 'lucide-react'
+import { Phone, MapPin, Clock, ArrowRight, Check, ChevronDown, MessageCircle, LayoutDashboard } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 import logo from '../assets/images/Logo_TP.png'
 import img2 from '../assets/images/Image 2.webp'
 import img3 from '../assets/images/Image 3.webp'
@@ -180,6 +181,7 @@ function StatsSection() {
 }
 
 export default function LandingPage() {
+  const { user } = useAuth()
   const typedWord = useTypewriter(['TRAIN.', 'PUSH.', 'LIFT.', 'GRIND.', 'SWEAT.'])
   return (
     <div className="bg-[#0a0a0a] text-white min-h-screen" style={{ scrollBehavior: 'smooth' }}>
@@ -203,12 +205,21 @@ export default function LandingPage() {
           >
             <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
           </a>
-          <Link
-            to="/login"
-            className="text-xs text-white/50 hover:text-white transition-colors tracking-widest uppercase border border-white/10 hover:border-white/30 rounded px-4 py-1.5"
-          >
-            Staff Portal
-          </Link>
+          {user ? (
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-1.5 text-xs text-white tracking-widest uppercase bg-white/10 hover:bg-white/20 transition-colors rounded px-4 py-1.5"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="text-xs text-white/50 hover:text-white transition-colors tracking-widest uppercase border border-white/10 hover:border-white/30 rounded px-4 py-1.5"
+            >
+              Staff Portal
+            </Link>
+          )}
         </div>
       </motion.header>
 
