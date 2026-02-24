@@ -44,26 +44,42 @@ const perks = [
 
 const plans = [
   {
-    name: 'Monthly',
+    name: 'Students',
     price: '3,000',
+    period: '/month',
+    highlight: false,
+    features: ['Full gym access', 'Trainer guidance', 'Locker room', 'Student ID required'],
+  },
+  {
+    name: 'Adults',
+    price: '4,000',
     period: '/month',
     highlight: true,
     badge: 'Most Popular',
     features: ['Full gym access', 'Trainer guidance', 'Locker room', 'Progress tracking'],
   },
   {
-    name: 'Quarterly',
-    price: '8,000',
-    period: '/3 months',
+    name: 'Couples',
+    price: '7,000',
+    period: '/month',
     highlight: false,
-    features: ['Everything in Monthly', 'Save LKR 1,000', 'Priority trainer time', 'Body assessment'],
+    features: ['Full gym access for 2', 'Trainer guidance', 'Locker room', 'Shared progress tracking'],
   },
   {
-    name: 'Annual',
-    price: '28,000',
-    period: '/year',
+    name: 'Campus Group',
+    price: '20,000',
+    period: '/month',
     highlight: false,
-    features: ['Everything in Quarterly', 'Save LKR 8,000', 'Free protein shake / month', 'VIP access'],
+    badge: '10 Students',
+    features: ['Full gym access', 'Group of 10 students', 'Trainer guidance', 'Campus ID required'],
+  },
+  {
+    name: 'Admission Fee',
+    price: '2,500',
+    period: ' one-time',
+    highlight: false,
+    badge: 'Freshers Only',
+    features: ['New member registration', 'One-time payment', 'Applies to all packages', 'Includes orientation'],
   },
 ]
 
@@ -385,7 +401,7 @@ export default function LandingPage() {
             <motion.p variants={stagger(0.18)} className="text-white/50 text-sm">Flexible options to fit your commitment level. No hidden fees.</motion.p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan, i) => (
               <motion.div
                 key={plan.name}
