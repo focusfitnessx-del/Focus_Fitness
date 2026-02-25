@@ -216,10 +216,7 @@ export default function MembersPage() {
                         </div>
                         <div>
                           <p className="font-medium">{m.fullName}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {m.memberNumber && <span className="font-mono text-xs text-primary font-semibold">{m.memberNumber}</span>}
-                            <span className="text-xs text-muted-foreground md:hidden">{m.phone}</span>
-                          </div>
+                          {m.memberNumber && <span className="font-mono text-xs text-primary font-semibold mt-0.5">{m.memberNumber}</span>}
                         </div>
                       </div>
                     </td>
