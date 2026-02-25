@@ -191,7 +191,6 @@ export default function MembersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">ID</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Member</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">Phone</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">NIC</th>
@@ -202,28 +201,25 @@ export default function MembersPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">
+                <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </td></tr>
               ) : members.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">No members found.</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No members found.</td></tr>
               ) : (
                 members.map((m) => (
                   <tr key={m.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className="font-mono text-xs text-primary font-bold">{m.memberNumber || '—'}</span>
-                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-bold shrink-0">
                           {getInitials(m.fullName)}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{m.fullName}</p>
-                            {m.memberNumber && <span className="font-mono text-xs text-primary font-bold sm:hidden">{m.memberNumber}</span>}
+                          <p className="font-medium">{m.fullName}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {m.memberNumber && <span className="font-mono text-xs text-primary font-semibold">{m.memberNumber}</span>}
+                            <span className="text-xs text-muted-foreground md:hidden">{m.phone}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground md:hidden">{m.phone}</p>
                         </div>
                       </div>
                     </td>
