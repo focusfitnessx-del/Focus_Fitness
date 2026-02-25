@@ -46,7 +46,10 @@ export default function MemberDetailPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">{member.fullName}</h1>
-          <p className="text-muted-foreground text-sm">Member details & payment history</p>
+          <p className="text-muted-foreground text-sm">
+            {member.memberNumber && <span className="font-mono text-primary font-semibold mr-2">{member.memberNumber}</span>}
+            Member details & payment history
+          </p>
         </div>
       </div>
 
@@ -89,6 +92,7 @@ export default function MemberDetailPage() {
             <CardTitle className="text-base">Member Information</CardTitle>
           </CardHeader>
           <CardContent>
+            <InfoRow label="Member ID" value={member.memberNumber} />
             <InfoRow label="NIC" value={member.nic} />
             <InfoRow label="Join Date" value={formatDate(member.joinDate)} />
             <InfoRow label="Due Date" value={formatDate(member.dueDate)} />

@@ -64,8 +64,20 @@ const getMemberById = async (id) => {
 const createMember = async (data) => {
   const dueDate = data.dueDate ? new Date(data.dueDate) : buildDueDate();
 
+  // Generate next member number (FF-0001, FF-0002, ...)
+  const last = await prisma.member.findFirst({
+    where: { memberNumber: { not: null } },
+    orderBy: { memberNumber: 'desc' },
+    select: { memberNumber: true },
+  });
+  const nextNum = last?.memberNumber
+    ? parseInt(last.memberNumber.replace('FF-', ''), 10) + 1
+    : 1;
+  const memberNumber = `FF-${String(nextNum).padStart(4, '0')}`;
+
   const member = await prisma.member.create({
     data: {
+      memberNumber,
       fullName: data.fullName,
       nic: data.nic || null,
       email: data.email || null,
