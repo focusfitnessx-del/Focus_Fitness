@@ -219,7 +219,10 @@ export default function MembersPage() {
                           {getInitials(m.fullName)}
                         </div>
                         <div>
-                          <p className="font-medium">{m.fullName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{m.fullName}</p>
+                            {m.memberNumber && <span className="font-mono text-xs text-primary font-bold sm:hidden">{m.memberNumber}</span>}
+                          </div>
                           <p className="text-xs text-muted-foreground md:hidden">{m.phone}</p>
                         </div>
                       </div>
