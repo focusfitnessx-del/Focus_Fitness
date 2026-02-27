@@ -569,9 +569,11 @@ export default function LandingPage() {
             <span className="font-display font-bold tracking-wide">Focus Fitness</span>
           </div>
           <p className="text-xs text-white/30">© {new Date().getFullYear()} Focus Fitness. All rights reserved.</p>
-          <Link to="/login" className="text-xs text-white/30 hover:text-white/60 transition-colors">
-            Staff Portal
-          </Link>
+          <p className="text-xs text-white/20">
+            Developed by{' '}
+            <span className="text-primary/60 font-semibold tracking-wide">ZyLabz</span>
+          </p>
+      
         </div>
       </footer>
 
