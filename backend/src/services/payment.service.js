@@ -1,5 +1,6 @@
 const prisma = require('../utils/prismaClient');
 const { createError } = require('../middleware/errorHandler');
+const { sendPaymentReceiptEmail } = require('./email.service');
 
 /**
  * Generates a receipt number: FF-YYYYMM-XXXX (e.g. FF-202602-0001)
@@ -42,7 +43,7 @@ const recordPayment = async ({ memberId, month, year, amount, notes, collectedBy
 
   const receiptNumber = await generateReceiptNumber(month, year);
 
-  const [payment] = await prisma.$transaction([
+  const [payment, updatedMember] = await prisma.$transaction([
     prisma.payment.create({
       data: {
         receiptNumber,
@@ -67,6 +68,18 @@ const recordPayment = async ({ memberId, month, year, amount, notes, collectedBy
       },
     }),
   ]);
+
+  // Send receipt email (fire-and-forget — don't fail the request if email errors)
+  sendPaymentReceiptEmail({
+    name: payment.member.fullName,
+    email: payment.member.email,
+    receiptNumber: payment.receiptNumber,
+    amount: payment.amount,
+    month: payment.month,
+    year: payment.year,
+    collectedBy: payment.collectedBy?.name,
+    nextDueDate: updatedMember.dueDate,
+  }).catch((err) => console.warn('[Email] Receipt email failed:', err.message));
 
   return payment;
 };

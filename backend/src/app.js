@@ -19,6 +19,7 @@ const reminderRoutes = require('./routes/reminder.routes');
 const entryRoutes = require('./routes/entry.routes');
 const settingRoutes = require('./routes/setting.routes');
 const cronRoutes = require('./routes/cron.routes');
+const planRoutes = require('./routes/plan.routes');
 
 // Cron Jobs
 require('./cron/scheduler');
@@ -79,6 +80,7 @@ app.use('/api/reminders', reminderRoutes);
 app.use('/api/entry', entryRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/cron', cronRoutes);
+app.use('/api/members/:id/plans', planRoutes);
 
 // ── 404 Handler ───────────────────────────────────────────────────────────
 app.use((req, res) => {

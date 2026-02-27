@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { memberService, paymentService } from '../services/index'
+import { useAuth } from '../context/AuthContext'
 import { toast } from '../hooks/useToast'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { formatDate, formatCurrency, getInitials } from '../lib/utils'
-import { ArrowLeft, Phone, Mail, Cake, Shield, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Cake, Shield, AlertCircle, Loader2, Salad, Dumbbell, Send, X, Plus, Pencil } from 'lucide-react'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -22,8 +23,13 @@ function InfoRow({ label, value }) {
 export default function MemberDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { isOwner } = useAuth()
   const [member, setMember] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [plans, setPlans] = useState({ mealPlan: null, workout: null })
+  const [planModal, setPlanModal] = useState(null) // 'MEAL_PLAN' | 'WORKOUT' | null
+  const [planForm, setPlanForm] = useState({ title: '', content: '' })
+  const [planSending, setPlanSending] = useState(false)
 
   useEffect(() => {
     memberService.getOne(id)
@@ -31,6 +37,34 @@ export default function MemberDetailPage() {
       .catch(() => { toast({ title: 'Not found', description: 'Member not found.', variant: 'destructive' }); navigate('/members') })
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    memberService.getPlans(id).then((res) => setPlans({ mealPlan: res.data.mealPlan, workout: res.data.workout }))
+  }, [id])
+
+  const openModal = (type) => {
+    const existing = type === 'MEAL_PLAN' ? plans.mealPlan : plans.workout
+    setPlanForm({ title: existing?.title || '', content: existing?.content || '' })
+    setPlanModal(type)
+  }
+
+  const handleSendPlan = async () => {
+    if (!planForm.content.trim()) {
+      toast({ title: 'Content required', description: 'Please enter the plan content.', variant: 'destructive' })
+      return
+    }
+    setPlanSending(true)
+    try {
+      const res = await memberService.sendPlan(id, { type: planModal, title: planForm.title, content: planForm.content })
+      setPlans((prev) => ({ ...prev, [planModal === 'MEAL_PLAN' ? 'mealPlan' : 'workout']: res.data.plan }))
+      toast({ title: 'Plan sent!', description: member?.email ? 'Plan saved and emailed to member.' : 'Plan saved (member has no email).' })
+      setPlanModal(null)
+    } catch (err) {
+      toast({ title: 'Error', description: err.response?.data?.message || 'Failed to send plan.', variant: 'destructive' })
+    } finally {
+      setPlanSending(false)
+    }
+  }
 
   if (loading) {
     return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -106,6 +140,83 @@ export default function MemberDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Plans */}
+      {isOwner && (
+        <div className="grid gap-5 md:grid-cols-2">
+          {[{ type: 'MEAL_PLAN', label: 'Meal Plan', icon: Salad, plan: plans.mealPlan },
+            { type: 'WORKOUT',   label: 'Workout Schedule', icon: Dumbbell, plan: plans.workout }]
+            .map(({ type, label, icon: Icon, plan }) => (
+            <Card key={type}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-primary" /> {label}
+                  </CardTitle>
+                  <Button size="sm" className={`h-7 text-xs gap-1 ${plan ? 'bg-transparent border border-primary text-primary hover:bg-primary/10' : 'bg-primary text-white hover:bg-primary/90'}`} onClick={() => openModal(type)}>
+                    {plan ? <Pencil className="h-3 w-3" /> : <Plus className="h-3.5 w-3.5" />} {plan ? 'Edit' : 'Add'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {plan ? (
+                  <div>
+                    {plan.title && <p className="text-sm font-semibold text-primary mb-2">{plan.title}</p>}
+                    <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed">{plan.content}</pre>
+                    <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">Last sent: {formatDate(plan.sentAt)}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No {label.toLowerCase()} assigned yet.</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Plan Modal */}
+      {planModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="font-semibold">{planModal === 'MEAL_PLAN' ? 'Meal Plan' : 'Workout Schedule'}</h2>
+              <button onClick={() => setPlanModal(null)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Title (optional)</label>
+                <input
+                  type="text"
+                  value={planForm.title}
+                  onChange={(e) => setPlanForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="e.g. Bulk Phase — March"
+                  className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Content <span className="text-destructive">*</span></label>
+                <textarea
+                  rows={10}
+                  value={planForm.content}
+                  onChange={(e) => setPlanForm((f) => ({ ...f, content: e.target.value }))}
+                  placeholder="Type the plan here..."
+                  className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none font-mono"
+                />
+              </div>
+              {!member?.email && (
+                <p className="text-xs text-yellow-400">⚠ This member has no email — plan will be saved but not emailed.</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border">
+              <Button variant="ghost" onClick={() => setPlanModal(null)}>Cancel</Button>
+              <Button onClick={handleSendPlan} disabled={planSending}>
+                {planSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}
+                {planSending ? 'Sending...' : 'Save & Send'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment History */}
       <Card>

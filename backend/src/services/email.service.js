@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const logger = require('../utils/logger');
+const { generatePlanPDF, generateReceiptPDF } = require('../utils/pdf.generator');
 
 if (process.env.EMAIL_USER && process.env.GMAIL_REFRESH_TOKEN) {
   logger.info(`[Email] Gmail API (HTTP) configured for: ${process.env.EMAIL_USER}`);
@@ -17,24 +18,59 @@ const getGmailClient = () => {
   return google.gmail({ version: 'v1', auth });
 };
 
-const sendEmail = async ({ to, subject, text, html }) => {
+const sendEmail = async ({ to, subject, text, html, attachments = [] }) => {
   if (!process.env.EMAIL_USER || !process.env.GMAIL_REFRESH_TOKEN) {
     logger.warn(`[Email] Not configured — skipping send to ${to}`);
     return { skipped: true };
   }
 
   const from = process.env.EMAIL_FROM || `Focus Fitness <${process.env.EMAIL_USER}>`;
-  const body = html || text;
   const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`;
-  const mimeMessage = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${encodedSubject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=utf-8',
-    '',
-    body,
-  ].join('\r\n');
+  const boundary = `ff_boundary_${Date.now()}`;
+
+  let mimeMessage;
+  if (attachments.length === 0) {
+    // Simple email
+    mimeMessage = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${encodedSubject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      html || text,
+    ].join('\r\n');
+  } else {
+    // Multipart email with attachments
+    const htmlBase64 = Buffer.from(html || text, 'utf-8').toString('base64');
+    const parts = [
+      `--${boundary}`,
+      'Content-Type: text/html; charset=utf-8',
+      'Content-Transfer-Encoding: base64',
+      '',
+      htmlBase64,
+    ];
+    for (const att of attachments) {
+      parts.push(
+        `--${boundary}`,
+        `Content-Type: ${att.mimeType}; name="${att.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${att.filename}"`,
+        '',
+        att.data.toString('base64'),
+      );
+    }
+    parts.push(`--${boundary}--`);
+    mimeMessage = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${encodedSubject}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+      ...parts,
+    ].join('\r\n');
+  }
 
   const raw = Buffer.from(mimeMessage)
     .toString('base64')
@@ -50,8 +86,6 @@ const sendEmail = async ({ to, subject, text, html }) => {
     logger.info(`[Email] Sent to ${to} | Subject: ${subject} | MessageId: ${res.data.id}`);
     return { messageId: res.data.id };
   } catch (gmailErr) {
-    // Strip Google API status codes (e.g. 401 for bad OAuth token) so they
-    // don't propagate to the frontend as auth errors that trigger logout.
     const msg = gmailErr.message || 'Gmail API error';
     logger.error(`[Email] Gmail API error sending to ${to}: ${msg}`);
     throw new Error(`Email delivery failed: ${msg}`);
@@ -198,4 +232,109 @@ const sendBirthdayWish = async ({ name, email }) => {
   return sendEmail({ to: email, subject, text, html });
 };
 
-module.exports = { sendEmail, sendWelcomeEmail, sendPaymentReminder, sendBirthdayWish };
+const sendPaymentReceiptEmail = async ({ name, email, receiptNumber, amount, month, year, collectedBy, nextDueDate }) => {
+  if (!email) return { skipped: true };
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const monthName = MONTHS[(month - 1)] || month;
+  const dueDateStr = nextDueDate
+    ? new Date(nextDueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    : 'N/A';
+
+  const subject = `Payment Confirmed — ${monthName} ${year} | Focus Fitness`;
+  const text = `Dear ${name},\n\nYour payment of LKR ${amount} for ${monthName} ${year} has been received.\nReceipt: ${receiptNumber}\nNext Due Date: ${dueDateStr}\n\nFocus Fitness`;
+
+  const html = emailWrapper(`
+    ${emailHeader('Payment Receipt')}
+    <tr>
+      <td style="background:#161616;padding:36px;">
+        <p style="color:#e11d48;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px;">Payment Confirmed</p>
+        <h2 style="color:#f0f0f0;font-size:20px;margin:0 0 10px;font-weight:700;">Dear ${name},</h2>
+        <p style="color:#999;font-size:14px;line-height:1.7;margin:0 0 28px;">Your membership payment has been successfully recorded. Thank you for staying active with Focus Fitness. A PDF receipt is attached for your records.</p>
+        <div style="border-top:1px solid #2a2a2a;margin:0 0 24px;"></div>
+        <p style="color:#555;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 12px;">Receipt Details</p>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          <tr>
+            <td style="padding:11px 14px;background:#1f1f1f;color:#666;font-size:12px;width:45%;">Receipt No.</td>
+            <td style="padding:11px 14px;background:#1f1f1f;color:#e11d48;font-size:12px;font-weight:700;">${receiptNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 14px;background:#191919;color:#666;font-size:12px;">Period</td>
+            <td style="padding:11px 14px;background:#191919;color:#f0f0f0;font-size:12px;font-weight:600;">${monthName} ${year}</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 14px;background:#1f1f1f;color:#666;font-size:12px;">Amount Paid</td>
+            <td style="padding:11px 14px;background:#1f1f1f;color:#22c55e;font-size:16px;font-weight:700;">LKR ${amount}</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 14px;background:#191919;color:#666;font-size:12px;">Collected By</td>
+            <td style="padding:11px 14px;background:#191919;color:#f0f0f0;font-size:12px;font-weight:600;">${collectedBy || 'Focus Fitness Staff'}</td>
+          </tr>
+          <tr>
+            <td style="padding:11px 14px;background:#1f1f1f;color:#666;font-size:12px;">Next Due Date</td>
+            <td style="padding:11px 14px;background:#1f1f1f;color:#f0f0f0;font-size:12px;font-weight:600;">${dueDateStr}</td>
+          </tr>
+        </table>
+        <div style="border-top:1px solid #2a2a2a;margin:24px 0 0;"></div>
+        <p style="color:#555;font-size:12px;margin:20px 0 0;">Please retain this receipt for your records. If you have any questions, contact us at the gym.</p>
+      </td>
+    </tr>
+    ${emailFooter()}`);
+
+  // Generate PDF receipt attachment
+  const pdfBuffer = await generateReceiptPDF({ name, receiptNumber, amount, month, year, collectedBy, nextDueDate });
+  const pdfFilename = `Receipt_${receiptNumber}.pdf`;
+
+  return sendEmail({ to: email, subject, text, html, attachments: [{ filename: pdfFilename, mimeType: 'application/pdf', data: pdfBuffer }] });
+};
+
+const sendPlanEmail = async ({ name, email, type, title, content }) => {
+  if (!email) return { skipped: true };
+
+  const typeLabel = type === 'MEAL_PLAN' ? 'Meal Plan' : 'Workout Schedule';
+  const instruction = type === 'MEAL_PLAN'
+    ? 'Follow this meal plan consistently for best results. Stay hydrated and try to eat at regular times each day.'
+    : 'Complete each session as scheduled. Focus on proper form and rest adequately between sets.';
+
+  const subject = title
+    ? `${typeLabel}: ${title} \u2014 Focus Fitness`
+    : `Your ${typeLabel} \u2014 Focus Fitness`;
+
+  const contentHtml = content
+    .split('\n')
+    .map((line) => line.trim() === '' ? '<br>' : `<p style="color:#ccc;font-size:14px;line-height:1.8;margin:0 0 4px;">${line}</p>`)
+    .join('');
+
+  const html = emailWrapper(`
+    ${emailHeader(typeLabel)}
+    <tr>
+      <td style="background:#161616;padding:36px;">
+        <p style="color:#e11d48;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px;">${typeLabel} &mdash; Focus Fitness</p>
+        <h2 style="color:#f0f0f0;font-size:20px;margin:0 0 6px;font-weight:700;">${name}</h2>
+        ${title ? `<p style="color:#e11d48;font-size:15px;font-weight:600;margin:4px 0 20px;">${title}</p>` : '<div style="margin-bottom:20px;"></div>'}
+        <p style="color:#999;font-size:13px;line-height:1.7;margin:0 0 24px;">${instruction}</p>
+        <div style="border-top:1px solid #2a2a2a;margin:0 0 24px;"></div>
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px 24px;border-left:3px solid #e11d48;">
+          ${contentHtml}
+        </div>
+        <div style="border-top:1px solid #2a2a2a;margin:24px 0 0;"></div>
+        <p style="color:#555;font-size:12px;margin:20px 0 0;">This plan was prepared by your trainer at Focus Fitness. A PDF copy is attached for easy reference. Contact us at the gym for any questions.</p>
+      </td>
+    </tr>
+    ${emailFooter()}`);
+
+  // Generate PDF attachment
+  const pdfBuffer = await generatePlanPDF({ name, type, title, content });
+  const pdfFilename = `${typeLabel.replace(' ', '_')}_${name.replace(/\s+/g, '_')}.pdf`;
+
+  const text = `${name} — ${typeLabel}${title ? ` — ${title}` : ''}\n\n${instruction}\n\n${content}\n\nFocus Fitness`;
+  return sendEmail({
+    to: email,
+    subject,
+    text,
+    html,
+    attachments: [{ filename: pdfFilename, mimeType: 'application/pdf', data: pdfBuffer }],
+  });
+};
+
+module.exports = { sendEmail, sendWelcomeEmail, sendPaymentReminder, sendBirthdayWish, sendPaymentReceiptEmail, sendPlanEmail };

@@ -15,6 +15,8 @@ export const memberService = {
   create: (data) => api.post('/members', data),
   update: (id, data) => api.patch(`/members/${id}`, data),
   delete: (id) => api.delete(`/members/${id}`),
+  getPlans: (id) => api.get(`/members/${id}/plans`),
+  sendPlan: (id, data) => api.post(`/members/${id}/plans`, data),
 }
 
 export const paymentService = {

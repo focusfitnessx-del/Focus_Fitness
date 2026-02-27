@@ -40,6 +40,11 @@ enum ReminderStatus {
   SKIPPED
 }
 
+enum PlanType {
+  MEAL_PLAN
+  WORKOUT
+}
+
 // ─────────────────────────────────────────────
 // User (Staff)
 // ─────────────────────────────────────────────
@@ -83,6 +88,7 @@ model Member {
 
   payments         Payment[]
   reminders        ReminderLog[]
+  plans            MemberPlan[]
 
   @@map("members")
 }
@@ -128,6 +134,24 @@ model ReminderLog {
   member    Member          @relation(fields: [memberId], references: [id], onDelete: Cascade)
 
   @@map("reminder_logs")
+}
+
+// ─────────────────────────────────────────────
+// Member Plans
+// ─────────────────────────────────────────────
+
+model MemberPlan {
+  id          String   @id @default(uuid())
+  memberId    String
+  type        PlanType
+  title       String?
+  content     String
+  sentAt      DateTime @default(now())
+  sentById    String?
+
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@map("member_plans")
 }
 
 // ─────────────────────────────────────────────
