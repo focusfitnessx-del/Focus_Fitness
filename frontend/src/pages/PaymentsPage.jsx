@@ -12,14 +12,27 @@ import { Plus, X, Loader2, ChevronLeft, ChevronRight, Receipt } from 'lucide-rea
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
+const MEMBERSHIP_PRICES = {
+  STUDENT: 3000,
+  ADULT: 4000,
+  COUPLE: 7000,
+  CAMPUS: 2000,
+}
+
+const PAYMENT_TYPE_LABELS = {
+  MONTHLY: 'Monthly',
+  ADMISSION: 'Admission',
+}
+
 function RecordPaymentModal({ onClose, onSaved }) {
   const { user } = useAuth()
   const now = new Date()
   const [form, setForm] = useState({
     memberId: '',
+    paymentType: 'MONTHLY',
     month: now.getMonth() + 1,
     year: now.getFullYear(),
-    amount: '3000',
+    amount: '4000',
     notes: '',
   })
   const [memberSearch, setMemberSearch] = useState('')
@@ -44,12 +57,29 @@ function RecordPaymentModal({ onClose, onSaved }) {
 
   const selectMember = (m) => {
     setSelectedMember(m)
-    setForm((f) => ({ ...f, memberId: m.id }))
+    setForm((f) => ({
+      ...f,
+      memberId: m.id,
+      amount: f.paymentType === 'ADMISSION' ? '2500' : (m.membershipType ? String(MEMBERSHIP_PRICES[m.membershipType]) : f.amount),
+    }))
     setMemberResults([])
     setMemberSearch(m.fullName)
   }
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const set = (k, v) => {
+    setForm((f) => {
+      const updated = { ...f, [k]: v }
+      // Auto-fill amount when payment type changes
+      if (k === 'paymentType') {
+        if (v === 'ADMISSION') {
+          updated.amount = '2500'
+        } else if (selectedMember?.membershipType) {
+          updated.amount = String(MEMBERSHIP_PRICES[selectedMember.membershipType])
+        }
+      }
+      return updated
+    })
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -105,22 +135,38 @@ function RecordPaymentModal({ onClose, onSaved }) {
           {selectedMember && (
             <div className="p-3 rounded-md bg-primary/10 border border-primary/20 text-sm">
               <p className="font-medium text-primary">{selectedMember.fullName}</p>
-              <p className="text-muted-foreground text-xs">{selectedMember.phone} · Due: {formatDate(selectedMember.dueDate)}</p>
+              <p className="text-muted-foreground text-xs">
+                {selectedMember.phone} · Due: {formatDate(selectedMember.dueDate)}
+                {selectedMember.membershipType && (
+                  <span className="ml-2 capitalize">· {selectedMember.membershipType.charAt(0) + selectedMember.membershipType.slice(1).toLowerCase()}</span>
+                )}
+              </p>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Month</Label>
-              <Select value={form.month} onValueChange={(v) => set('month', Number(v))}>
-                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Year</Label>
-              <Input type="number" value={form.year} onChange={(e) => set('year', Number(e.target.value))} min={2020} max={2050} />
-            </div>
+          {/* Payment Type */}
+          <div className="space-y-1.5">
+            <Label>Payment Type</Label>
+            <Select value={form.paymentType} onValueChange={(v) => set('paymentType', v)}>
+              <option value="MONTHLY">Monthly Fee</option>
+              <option value="ADMISSION">Admission Fee</option>
+            </Select>
           </div>
+
+          {form.paymentType === 'MONTHLY' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Month</Label>
+                <Select value={form.month} onValueChange={(v) => set('month', Number(v))}>
+                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Year</Label>
+                <Input type="number" value={form.year} onChange={(e) => set('year', Number(e.target.value))} min={2020} max={2050} />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label>Amount (LKR)</Label>
@@ -201,6 +247,7 @@ export default function PaymentsPage() {
               <tr className="border-b border-border">
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Receipt #</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Member</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden sm:table-cell">Type</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden md:table-cell">Period</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Amount</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground hidden lg:table-cell">Paid Date</th>
@@ -209,9 +256,9 @@ export default function PaymentsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></td></tr>
+                <tr><td colSpan={7} className="py-12 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" /></td></tr>
               ) : payments.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No payments found.</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">No payments found.</td></tr>
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
@@ -219,6 +266,11 @@ export default function PaymentsPage() {
                     <td className="px-4 py-3">
                       <p className="font-medium">{p.member?.fullName}</p>
                       <p className="text-xs text-muted-foreground">{p.member?.phone}</p>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {p.paymentType === 'ADMISSION'
+                        ? <span className="text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-medium">Admission</span>
+                        : <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded font-medium">Monthly</span>}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{MONTHS[p.month - 1]} {p.year}</td>
                     <td className="px-4 py-3 text-emerald-400 font-bold">{formatCurrency(p.amount)}</td>

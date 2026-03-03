@@ -31,13 +31,14 @@ const record = [
   ...recordValidation,
   validate,
   asyncHandler(async (req, res) => {
-    const { memberId, month, year, amount, notes } = req.body;
+    const { memberId, month, year, amount, notes, paymentType } = req.body;
     const payment = await paymentService.recordPayment({
       memberId,
       month: Number(month),
       year: Number(year),
       amount,
       notes,
+      paymentType,
       collectedById: req.user.id,
     });
     res.status(201).json({ success: true, payment });

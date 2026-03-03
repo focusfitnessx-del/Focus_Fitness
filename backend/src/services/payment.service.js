@@ -27,24 +27,59 @@ const nextDueDate = (fromDate) => {
   return new Date(d.getFullYear(), d.getMonth() + 1, 10);
 };
 
-const recordPayment = async ({ memberId, month, year, amount, notes, collectedById }) => {
+const recordPayment = async ({ memberId, month, year, amount, notes, collectedById, paymentType }) => {
   if (!memberId || !month || !year || !amount) {
     throw createError(400, 'memberId, month, year, and amount are required.');
   }
 
+  const resolvedType = paymentType === 'ADMISSION' ? 'ADMISSION' : 'MONTHLY';
+
   const member = await prisma.member.findUnique({ where: { id: memberId } });
   if (!member) throw createError(404, 'Member not found.');
 
-  // Prevent duplicate payment for same member/month/year
-  const existing = await prisma.payment.findUnique({
-    where: { memberId_month_year: { memberId, month: Number(month), year: Number(year) } },
-  });
-  if (existing) throw createError(409, `Payment for ${month}/${year} already recorded for this member.`);
+  // Prevent duplicate MONTHLY payment for same member/month/year
+  if (resolvedType === 'MONTHLY') {
+    const existing = await prisma.payment.findFirst({
+      where: { memberId, month: Number(month), year: Number(year), paymentType: 'MONTHLY' },
+    });
+    if (existing) throw createError(409, `Monthly payment for ${month}/${year} already recorded for this member.`);
+  }
 
   const receiptNumber = await generateReceiptNumber(month, year);
 
-  const [payment, updatedMember] = await prisma.$transaction([
-    prisma.payment.create({
+  let payment;
+  let updatedMember;
+
+  if (resolvedType === 'MONTHLY') {
+    // MONTHLY: create payment + advance member due date in a transaction
+    [payment, updatedMember] = await prisma.$transaction([
+      prisma.payment.create({
+        data: {
+          receiptNumber,
+          memberId,
+          month: Number(month),
+          year: Number(year),
+          amount: parseFloat(amount),
+          collectedById,
+          notes: notes || null,
+          paymentType: 'MONTHLY',
+        },
+        include: {
+          member: { select: { fullName: true, phone: true, email: true } },
+          collectedBy: { select: { name: true } },
+        },
+      }),
+      prisma.member.update({
+        where: { id: memberId },
+        data: {
+          status: 'ACTIVE',
+          dueDate: nextDueDate(new Date(year, month - 1, 10)),
+        },
+      }),
+    ]);
+  } else {
+    // ADMISSION: record payment only — do not alter dueDate or status
+    payment = await prisma.payment.create({
       data: {
         receiptNumber,
         memberId,
@@ -53,21 +88,15 @@ const recordPayment = async ({ memberId, month, year, amount, notes, collectedBy
         amount: parseFloat(amount),
         collectedById,
         notes: notes || null,
+        paymentType: 'ADMISSION',
       },
       include: {
         member: { select: { fullName: true, phone: true, email: true } },
         collectedBy: { select: { name: true } },
       },
-    }),
-    // Update member status to ACTIVE and advance due date
-    prisma.member.update({
-      where: { id: memberId },
-      data: {
-        status: 'ACTIVE',
-        dueDate: nextDueDate(new Date(year, month - 1, 10)),
-      },
-    }),
-  ]);
+    });
+    updatedMember = member;
+  }
 
   // Send receipt email (fire-and-forget — don't fail the request if email errors)
   sendPaymentReceiptEmail({

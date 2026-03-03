@@ -88,6 +88,7 @@ const createMember = async (data) => {
       joinDate: data.joinDate ? new Date(data.joinDate) : new Date(),
       dueDate,
       status: 'ACTIVE',
+      membershipType: data.membershipType || null,
     },
   });
 
@@ -120,6 +121,7 @@ const updateMember = async (id, data) => {
       ...(data.emergencyContact !== undefined && { emergencyContact: data.emergencyContact }),
       ...(data.dueDate !== undefined && { dueDate: new Date(data.dueDate) }),
       ...(data.status !== undefined && { status: data.status }),
+      ...(data.membershipType !== undefined && { membershipType: data.membershipType || null }),
     },
   });
 };

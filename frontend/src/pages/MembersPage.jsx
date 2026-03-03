@@ -13,14 +13,29 @@ import { formatDate, getInitials } from '../lib/utils'
 import { Plus, Search, Eye, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { ConfirmModal } from '../components/ui/confirm-modal'
 
+const MEMBERSHIP_TYPE_LABELS = {
+  STUDENT: 'Student',
+  ADULT: 'Adult',
+  COUPLE: 'Couple',
+  CAMPUS: 'Campus',
+}
+
+const MEMBERSHIP_TYPE_COLORS = {
+  STUDENT: 'bg-blue-500/20 text-blue-300',
+  ADULT: 'bg-emerald-500/20 text-emerald-300',
+  COUPLE: 'bg-purple-500/20 text-purple-300',
+  CAMPUS: 'bg-orange-500/20 text-orange-300',
+}
+
 const EMPTY_FORM = {
   fullName: '', nic: '', email: '', phone: '', birthday: '',
   medicalNotes: '', emergencyContact: '', joinDate: '', status: 'ACTIVE',
+  membershipType: '',
 }
 
 function MemberModal({ member, onClose, onSaved }) {
   const [form, setForm] = useState(member
-    ? { ...member, birthday: member.birthday ? member.birthday.split('T')[0] : '', joinDate: member.joinDate ? member.joinDate.split('T')[0] : '' }
+    ? { ...member, birthday: member.birthday ? member.birthday.split('T')[0] : '', joinDate: member.joinDate ? member.joinDate.split('T')[0] : '', membershipType: member.membershipType || '' }
     : EMPTY_FORM
   )
   const [saving, setSaving] = useState(false)
@@ -83,6 +98,16 @@ function MemberModal({ member, onClose, onSaved }) {
             <div className="col-span-2 space-y-1.5">
               <Label>Emergency Contact</Label>
               <Input value={form.emergencyContact} onChange={(e) => set('emergencyContact', e.target.value)} placeholder="Name – 077 xxx xxxx" />
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Membership Type</Label>
+              <Select value={form.membershipType} onValueChange={(v) => set('membershipType', v)}>
+                <option value="">Not Set</option>
+                <option value="STUDENT">Student — LKR 3,000/mo</option>
+                <option value="ADULT">Adult — LKR 4,000/mo</option>
+                <option value="COUPLE">Couple — LKR 7,000/mo</option>
+                <option value="CAMPUS">Campus — LKR 2,000/mo</option>
+              </Select>
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Medical Notes</Label>
@@ -216,7 +241,14 @@ export default function MembersPage() {
                         </div>
                         <div>
                           <p className="font-medium">{m.fullName}</p>
-                          {m.memberNumber && <span className="font-mono text-xs text-primary font-semibold mt-0.5">{m.memberNumber}</span>}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {m.memberNumber && <span className="font-mono text-xs text-primary font-semibold">{m.memberNumber}</span>}
+                            {m.membershipType && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${MEMBERSHIP_TYPE_COLORS[m.membershipType]}`}>
+                                {MEMBERSHIP_TYPE_LABELS[m.membershipType]}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>

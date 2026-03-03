@@ -11,6 +11,20 @@ import { ArrowLeft, Phone, Mail, Cake, Shield, AlertCircle, Loader2, Salad, Dumb
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+const MEMBERSHIP_TYPE_LABELS = {
+  STUDENT: 'Student',
+  ADULT: 'Adult',
+  COUPLE: 'Couple',
+  CAMPUS: 'Campus',
+}
+
+const MEMBERSHIP_TYPE_COLORS = {
+  STUDENT: 'bg-blue-500/20 text-blue-300',
+  ADULT: 'bg-emerald-500/20 text-emerald-300',
+  COUPLE: 'bg-purple-500/20 text-purple-300',
+  CAMPUS: 'bg-orange-500/20 text-orange-300',
+}
+
 function InfoRow({ label, value }) {
   return (
     <div className="flex justify-between py-2 border-b border-border/50 last:border-0">
@@ -99,6 +113,11 @@ export default function MemberDetailPage() {
               <Badge className="mt-1" variant={member.status === 'ACTIVE' ? 'success' : 'destructive'}>
                 {member.status}
               </Badge>
+              {member.membershipType && (
+                <span className={`block mt-1.5 text-xs px-2 py-0.5 rounded-full font-medium w-fit mx-auto ${MEMBERSHIP_TYPE_COLORS[member.membershipType]}`}>
+                  {MEMBERSHIP_TYPE_LABELS[member.membershipType]}
+                </span>
+              )}
             </div>
             <div className="w-full space-y-2 text-left">
               {member.phone && (
@@ -127,6 +146,7 @@ export default function MemberDetailPage() {
           </CardHeader>
           <CardContent>
             <InfoRow label="Member ID" value={member.memberNumber} />
+            <InfoRow label="Membership Type" value={member.membershipType ? MEMBERSHIP_TYPE_LABELS[member.membershipType] : 'Not Set'} />
             <InfoRow label="NIC" value={member.nic} />
             <InfoRow label="Join Date" value={formatDate(member.joinDate)} />
             <InfoRow label="Due Date" value={formatDate(member.dueDate)} />
@@ -232,7 +252,7 @@ export default function MemberDetailPage() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="px-3 py-2 text-left text-muted-foreground font-medium">Receipt</th>
-                    <th className="px-3 py-2 text-left text-muted-foreground font-medium">Period</th>
+                    <th className="px-3 py-2 text-left text-muted-foreground font-medium">Type / Period</th>
                     <th className="px-3 py-2 text-left text-muted-foreground font-medium">Amount</th>
                     <th className="px-3 py-2 text-left text-muted-foreground font-medium">Paid Date</th>
                     <th className="px-3 py-2 text-left text-muted-foreground font-medium">Collected By</th>
@@ -242,7 +262,11 @@ export default function MemberDetailPage() {
                   {member.payments.map((p) => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-accent/30">
                       <td className="px-3 py-2.5 font-mono text-xs text-primary">{p.receiptNumber}</td>
-                      <td className="px-3 py-2.5">{MONTHS[p.month - 1]} {p.year}</td>
+                      <td className="px-3 py-2.5">
+                        {p.paymentType === 'ADMISSION'
+                          ? <span className="text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-medium">Admission Fee</span>
+                          : <>{MONTHS[p.month - 1]} {p.year}</>}
+                      </td>
                       <td className="px-3 py-2.5 text-emerald-400 font-medium">{formatCurrency(p.amount)}</td>
                       <td className="px-3 py-2.5 text-muted-foreground">{formatDate(p.paidDate)}</td>
                       <td className="px-3 py-2.5 text-muted-foreground">{p.collectedBy?.name}</td>

@@ -45,6 +45,18 @@ enum PlanType {
   WORKOUT
 }
 
+enum MembershipType {
+  STUDENT
+  ADULT
+  COUPLE
+  CAMPUS
+}
+
+enum PaymentType {
+  MONTHLY
+  ADMISSION
+}
+
 // ─────────────────────────────────────────────
 // User (Staff)
 // ─────────────────────────────────────────────
@@ -83,6 +95,7 @@ model Member {
   status           MemberStatus @default(ACTIVE)
   dueDate          DateTime
   gymId            String?      // reserved for multi-branch upgrade
+  membershipType   MembershipType?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -108,12 +121,12 @@ model Payment {
   collectedById String
   notes         String?
   gymId         String?  // reserved for multi-branch upgrade
+  paymentType   PaymentType @default(MONTHLY)
   createdAt     DateTime @default(now())
 
   member        Member?  @relation(fields: [memberId], references: [id], onDelete: SetNull)
   collectedBy   User     @relation(fields: [collectedById], references: [id])
 
-  @@unique([memberId, month, year])
   @@map("payments")
 }
 
