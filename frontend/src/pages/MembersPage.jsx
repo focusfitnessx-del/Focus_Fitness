@@ -63,14 +63,15 @@ function MemberModal({ member, onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-3 pt-3 pb-20 sm:p-4">
+      <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border shrink-0">
           <h2 className="text-lg font-bold">{member ? 'Edit Member' : 'Add New Member'}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="overflow-y-auto flex-1 p-4 sm:p-6">
+            <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-1.5">
               <Label>Full Name *</Label>
               <Input value={form.fullName} onChange={(e) => set('fullName', e.target.value)} required placeholder="John Silva" />
@@ -123,7 +124,8 @@ function MemberModal({ member, onClose, onSaved }) {
               </div>
             )}
           </div>
-          <div className="flex gap-3 pt-2">
+          </div>
+          <div className="flex gap-3 p-4 sm:p-6 border-t border-border shrink-0">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

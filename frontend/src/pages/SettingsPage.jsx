@@ -295,6 +295,8 @@ export default function SettingsPage() {
                 { type: 'welcome', label: 'Welcome Email', desc: 'New member welcome & membership details' },
                 { type: 'payment_reminder', label: 'Payment Reminder', desc: 'Monthly fee due notification' },
                 { type: 'birthday', label: 'Birthday Wish', desc: 'Member birthday greeting message' },
+                { type: 'payment_receipt', label: 'Payment Receipt', desc: 'Receipt email with PDF attachment' },
+                { type: 'plan', label: 'Workout / Meal Plan', desc: 'Sample plan email with PDF attachment' },
               ].map(({ type, label, desc }) => (
                 <button
                   key={type}

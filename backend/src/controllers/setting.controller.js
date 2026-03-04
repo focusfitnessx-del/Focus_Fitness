@@ -56,8 +56,29 @@ const sendTestEmail = asyncHandler(async (req, res) => {
         email: to.trim(),
       });
       break;
+    case 'payment_receipt':
+      result = await emailService.sendPaymentReceiptEmail({
+        name: 'Test Member',
+        email: to.trim(),
+        receiptNumber: 'RCP-TEST-001',
+        amount: '4,000.00',
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        collectedBy: 'Focus Fitness Staff',
+        nextDueDate: dueDate30Days,
+      });
+      break;
+    case 'plan':
+      result = await emailService.sendPlanEmail({
+        name: 'Test Member',
+        email: to.trim(),
+        type: 'WORKOUT_PLAN',
+        title: 'Sample Workout Schedule',
+        content: 'Monday: Chest & Triceps\nTuesday: Back & Biceps\nWednesday: Rest\nThursday: Legs & Shoulders\nFriday: Full Body\nSaturday: Cardio\nSunday: Rest',
+      });
+      break;
     default:
-      throw createError(400, `Invalid type "${type}". Use welcome, payment_reminder, or birthday.`);
+      throw createError(400, `Invalid type "${type}". Use welcome, payment_reminder, birthday, payment_receipt, or plan.`);
   }
 
   res.json({ success: true, message: `Test "${type}" email sent to ${to.trim()}`, result });

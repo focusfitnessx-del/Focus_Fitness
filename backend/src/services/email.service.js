@@ -281,11 +281,16 @@ const sendPaymentReceiptEmail = async ({ name, email, receiptNumber, amount, mon
     </tr>
     ${emailFooter()}`);
 
-  // Generate PDF receipt attachment
-  const pdfBuffer = await generateReceiptPDF({ name, receiptNumber, amount, month, year, collectedBy, nextDueDate });
-  const pdfFilename = `Receipt_${receiptNumber}.pdf`;
+  // Generate PDF receipt attachment (gracefully degrade if PDF fails)
+  let attachments = [];
+  try {
+    const pdfBuffer = await generateReceiptPDF({ name, receiptNumber, amount, month, year, collectedBy, nextDueDate });
+    attachments = [{ filename: `Receipt_${receiptNumber}.pdf`, mimeType: 'application/pdf', data: pdfBuffer }];
+  } catch (pdfErr) {
+    logger.warn(`[Email] PDF generation failed for ${receiptNumber}, sending email without attachment: ${pdfErr.message}`);
+  }
 
-  return sendEmail({ to: email, subject, text, html, attachments: [{ filename: pdfFilename, mimeType: 'application/pdf', data: pdfBuffer }] });
+  return sendEmail({ to: email, subject, text, html, attachments });
 };
 
 const sendPlanEmail = async ({ name, email, type, title, content }) => {

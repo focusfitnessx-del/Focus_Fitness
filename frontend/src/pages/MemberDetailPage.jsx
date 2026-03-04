@@ -196,13 +196,13 @@ export default function MemberDetailPage() {
 
       {/* Plan Modal */}
       {planModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border">
               <h2 className="font-semibold">{planModal === 'MEAL_PLAN' ? 'Meal Plan' : 'Workout Schedule'}</h2>
               <button onClick={() => setPlanModal(null)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Title (optional)</label>
                 <input
@@ -227,7 +227,7 @@ export default function MemberDetailPage() {
                 <p className="text-xs text-yellow-400">⚠ This member has no email — plan will be saved but not emailed.</p>
               )}
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-border">
+            <div className="flex justify-end gap-3 px-4 sm:px-6 py-4 border-t border-border">
               <Button variant="ghost" onClick={() => setPlanModal(null)}>Cancel</Button>
               <Button onClick={handleSendPlan} disabled={planSending}>
                 {planSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-1.5" />}

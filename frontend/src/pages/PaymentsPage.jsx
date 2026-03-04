@@ -96,89 +96,91 @@ function RecordPaymentModal({ onClose, onSaved }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="bg-card border border-border rounded-xl w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-3 pt-3 pb-20 sm:p-4">
+      <div className="bg-card border border-border rounded-xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-bold">Record Payment</h2>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Member Search */}
-          <div className="space-y-1.5 relative">
-            <Label>Member *</Label>
-            <Input
-              placeholder="Search member by name or phone..."
-              value={memberSearch}
-              onChange={(e) => { setMemberSearch(e.target.value); setSelectedMember(null); set('memberId', '') }}
-            />
-            {searching && <Loader2 className="absolute right-3 top-8 h-4 w-4 animate-spin text-muted-foreground" />}
-            {memberResults.length > 0 && (
-              <div className="absolute top-full z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {memberResults.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className="w-full text-left px-3 py-2.5 hover:bg-accent text-sm transition-colors"
-                    onClick={() => selectMember(m)}
-                  >
-                    <p className="font-medium">{m.fullName}</p>
-                    <p className="text-xs text-muted-foreground">{m.phone} · {m.status}</p>
-                  </button>
-                ))}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
+            {/* Member Search */}
+            <div className="space-y-1.5 relative">
+              <Label>Member *</Label>
+              <Input
+                placeholder="Search member by name or phone..."
+                value={memberSearch}
+                onChange={(e) => { setMemberSearch(e.target.value); setSelectedMember(null); set('memberId', '') }}
+              />
+              {searching && <Loader2 className="absolute right-3 top-8 h-4 w-4 animate-spin text-muted-foreground" />}
+              {memberResults.length > 0 && (
+                <div className="absolute top-full z-10 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                  {memberResults.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2.5 hover:bg-accent text-sm transition-colors"
+                      onClick={() => selectMember(m)}
+                    >
+                      <p className="font-medium">{m.fullName}</p>
+                      <p className="text-xs text-muted-foreground">{m.phone} · {m.status}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedMember && (
+              <div className="p-3 rounded-md bg-primary/10 border border-primary/20 text-sm">
+                <p className="font-medium text-primary">{selectedMember.fullName}</p>
+                <p className="text-muted-foreground text-xs">
+                  {selectedMember.phone} · Due: {formatDate(selectedMember.dueDate)}
+                  {selectedMember.membershipType && (
+                    <span className="ml-2 capitalize">· {selectedMember.membershipType.charAt(0) + selectedMember.membershipType.slice(1).toLowerCase()}</span>
+                  )}
+                </p>
               </div>
             )}
-          </div>
 
-          {selectedMember && (
-            <div className="p-3 rounded-md bg-primary/10 border border-primary/20 text-sm">
-              <p className="font-medium text-primary">{selectedMember.fullName}</p>
-              <p className="text-muted-foreground text-xs">
-                {selectedMember.phone} · Due: {formatDate(selectedMember.dueDate)}
-                {selectedMember.membershipType && (
-                  <span className="ml-2 capitalize">· {selectedMember.membershipType.charAt(0) + selectedMember.membershipType.slice(1).toLowerCase()}</span>
-                )}
-              </p>
+            {/* Payment Type */}
+            <div className="space-y-1.5">
+              <Label>Payment Type</Label>
+              <Select value={form.paymentType} onValueChange={(v) => set('paymentType', v)}>
+                <option value="MONTHLY">Monthly Fee</option>
+                <option value="ADMISSION">Admission Fee</option>
+              </Select>
             </div>
-          )}
 
-          {/* Payment Type */}
-          <div className="space-y-1.5">
-            <Label>Payment Type</Label>
-            <Select value={form.paymentType} onValueChange={(v) => set('paymentType', v)}>
-              <option value="MONTHLY">Monthly Fee</option>
-              <option value="ADMISSION">Admission Fee</option>
-            </Select>
-          </div>
+            {form.paymentType === 'MONTHLY' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label>Month</Label>
+                  <Select value={form.month} onValueChange={(v) => set('month', Number(v))}>
+                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Year</Label>
+                  <Input type="number" value={form.year} onChange={(e) => set('year', Number(e.target.value))} min={2020} max={2050} />
+                </div>
+              </div>
+            )}
 
-          {form.paymentType === 'MONTHLY' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Month</Label>
-                <Select value={form.month} onValueChange={(v) => set('month', Number(v))}>
-                  {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Year</Label>
-                <Input type="number" value={form.year} onChange={(e) => set('year', Number(e.target.value))} min={2020} max={2050} />
-              </div>
+            <div className="space-y-1.5">
+              <Label>Amount (LKR)</Label>
+              <Input type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} required min={1} />
             </div>
-          )}
 
-          <div className="space-y-1.5">
-            <Label>Amount (LKR)</Label>
-            <Input type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} required min={1} />
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Input value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Optional notes..." />
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Notes</Label>
-            <Input value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Optional notes..." />
-          </div>
-
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 p-4 sm:p-6 border-t border-border shrink-0">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="submit" className="flex-1" disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
