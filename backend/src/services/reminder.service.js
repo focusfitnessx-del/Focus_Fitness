@@ -20,11 +20,13 @@ const logReminder = async ({ memberId, type, channel, status, message, error }) 
  * Sends payment due reminders to members whose due date is within N days.
  * N is read from the REMINDER_DAYS_BEFORE setting (default: 3).
  */
+const MEMBERSHIP_PRICES = { STUDENT: 3000, ADULT: 4000, COUPLE: 7000, CAMPUS: 2000 };
+
 const sendPaymentReminders = async () => {
   const setting = await prisma.setting.findUnique({ where: { key: 'REMINDER_DAYS_BEFORE' } });
   const daysBefore = parseInt(setting?.value || '3');
   const amountSetting = await prisma.setting.findUnique({ where: { key: 'MONTHLY_PACKAGE_AMOUNT' } });
-  const amount = amountSetting?.value || '3000';
+  const defaultAmount = parseInt(amountSetting?.value || '3000');
 
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + daysBefore);
@@ -38,6 +40,10 @@ const sendPaymentReminders = async () => {
       status: 'ACTIVE',
       dueDate: { gte: startOfDay, lt: endOfDay },
     },
+    select: {
+      id: true, fullName: true, email: true, phone: true,
+      dueDate: true, membershipType: true,
+    },
   });
 
   logger.info(`[Reminder] Found ${members.length} members with payment due in ${daysBefore} days.`);
@@ -47,6 +53,8 @@ const sendPaymentReminders = async () => {
   });
 
   for (const member of members) {
+    const memberAmount = (MEMBERSHIP_PRICES[member.membershipType] ?? defaultAmount).toLocaleString();
+
     // Email
     try {
       const result = await emailService.sendPaymentReminder({
@@ -54,7 +62,7 @@ const sendPaymentReminders = async () => {
         email: member.email,
         phone: member.phone,
         dueDate: dueDateStr,
-        amount,
+        amount: memberAmount,
       });
       await logReminder({
         memberId: member.id,
@@ -74,7 +82,7 @@ const sendPaymentReminders = async () => {
         name: member.fullName,
         phone: member.phone,
         dueDate: dueDateStr,
-        amount,
+        amount: memberAmount,
       });
       await logReminder({
         memberId: member.id,
@@ -100,20 +108,23 @@ const sendBirthdayWishes = async () => {
   const todayMonth = now.getMonth() + 1;
   const todayDay = now.getDate();
 
-  // Use raw query to compare month/day ignoring year
-  const members = await prisma.$queryRaw`
-    SELECT * FROM members
-    WHERE deleted_at IS NULL
-    AND EXTRACT(MONTH FROM birthday) = ${todayMonth}
-    AND EXTRACT(DAY FROM birthday) = ${todayDay}
-  `;
+  // Fetch all members with a birthday set, then filter by month/day in JS
+  const allMembers = await prisma.member.findMany({
+    where: { birthday: { not: null } },
+    select: { id: true, fullName: true, email: true, phone: true, birthday: true },
+  });
+
+  const members = allMembers.filter((m) => {
+    const d = new Date(m.birthday);
+    return d.getMonth() + 1 === todayMonth && d.getDate() === todayDay;
+  });
 
   logger.info(`[Birthday] Found ${members.length} members with birthdays today.`);
 
   for (const member of members) {
     // Email
     try {
-      const result = await emailService.sendBirthdayWish({ name: member.full_name, email: member.email });
+      const result = await emailService.sendBirthdayWish({ name: member.fullName, email: member.email });
       await logReminder({
         memberId: member.id,
         type: 'BIRTHDAY',
@@ -122,13 +133,13 @@ const sendBirthdayWishes = async () => {
         message: 'Birthday wish sent',
       });
     } catch (err) {
-      logger.error(`[Birthday] Email failed for ${member.full_name}: ${err.message}`);
+      logger.error(`[Birthday] Email failed for ${member.fullName}: ${err.message}`);
       await logReminder({ memberId: member.id, type: 'BIRTHDAY', channel: 'EMAIL', status: 'FAILED', error: err.message });
     }
 
     // WhatsApp
     try {
-      const result = await whatsappService.sendBirthdayWhatsApp({ name: member.full_name, phone: member.phone });
+      const result = await whatsappService.sendBirthdayWhatsApp({ name: member.fullName, phone: member.phone });
       await logReminder({
         memberId: member.id,
         type: 'BIRTHDAY',
@@ -137,7 +148,7 @@ const sendBirthdayWishes = async () => {
         message: 'Birthday wish sent',
       });
     } catch (err) {
-      logger.error(`[Birthday] WhatsApp failed for ${member.full_name}: ${err.message}`);
+      logger.error(`[Birthday] WhatsApp failed for ${member.fullName}: ${err.message}`);
       await logReminder({ memberId: member.id, type: 'BIRTHDAY', channel: 'WHATSAPP', status: 'FAILED', error: err.message });
     }
   }
