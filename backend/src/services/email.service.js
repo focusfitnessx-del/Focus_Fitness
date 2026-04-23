@@ -232,17 +232,18 @@ const sendBirthdayWish = async ({ name, email }) => {
   return sendEmail({ to: email, subject, text, html });
 };
 
-const sendPaymentReceiptEmail = async ({ name, email, receiptNumber, amount, month, year, collectedBy, nextDueDate }) => {
+const sendPaymentReceiptEmail = async ({ name, email, receiptNumber, amount, month, year, collectedBy, nextDueDate, periodLabel }) => {
   if (!email) return { skipped: true };
 
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const monthName = MONTHS[(month - 1)] || month;
+  const displayPeriod = periodLabel || `${monthName} ${year}`;
   const dueDateStr = nextDueDate
     ? new Date(nextDueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
     : 'N/A';
 
-  const subject = `Payment Confirmed — ${monthName} ${year} | Focus Fitness`;
-  const text = `Dear ${name},\n\nYour payment of LKR ${amount} for ${monthName} ${year} has been received.\nReceipt: ${receiptNumber}\nNext Due Date: ${dueDateStr}\n\nFocus Fitness`;
+  const subject = `Payment Confirmed — ${displayPeriod} | Focus Fitness`;
+  const text = `Dear ${name},\n\nYour payment of LKR ${amount} for ${displayPeriod} has been received.\nReceipt: ${receiptNumber}\nNext Due Date: ${dueDateStr}\n\nFocus Fitness`;
 
   const html = emailWrapper(`
     ${emailHeader('Payment Receipt')}
@@ -260,7 +261,7 @@ const sendPaymentReceiptEmail = async ({ name, email, receiptNumber, amount, mon
           </tr>
           <tr>
             <td style="padding:11px 14px;background:#191919;color:#666;font-size:12px;">Period</td>
-            <td style="padding:11px 14px;background:#191919;color:#f0f0f0;font-size:12px;font-weight:600;">${monthName} ${year}</td>
+            <td style="padding:11px 14px;background:#191919;color:#f0f0f0;font-size:12px;font-weight:600;">${displayPeriod}</td>
           </tr>
           <tr>
             <td style="padding:11px 14px;background:#1f1f1f;color:#666;font-size:12px;">Amount Paid</td>

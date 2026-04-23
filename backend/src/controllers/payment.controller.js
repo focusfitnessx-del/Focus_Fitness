@@ -14,6 +14,7 @@ const recordValidation = [
   body('year').isInt({ min: 2000, max: 2100 }).withMessage('year must be a valid 4-digit year.'),
   body('amount').isFloat({ min: 0.01 }).withMessage('amount must be a positive number.'),
   body('notes').optional({ nullable: true, checkFalsy: true }).trim().isLength({ max: 500 }).withMessage('notes must be at most 500 characters.'),
+  body('months').optional().isInt({ min: 1, max: 12 }).withMessage('months must be between 1 and 12.'),
 ];
 
 const list = asyncHandler(async (req, res) => {
@@ -31,17 +32,18 @@ const record = [
   ...recordValidation,
   validate,
   asyncHandler(async (req, res) => {
-    const { memberId, month, year, amount, notes, paymentType } = req.body;
-    const payment = await paymentService.recordPayment({
+    const { memberId, month, year, amount, notes, paymentType, months } = req.body;
+    const result = await paymentService.recordPayment({
       memberId,
       month: Number(month),
       year: Number(year),
       amount,
       notes,
       paymentType,
+      months,
       collectedById: req.user.id,
     });
-    res.status(201).json({ success: true, payment });
+    res.status(201).json({ success: true, payment: result.payment, payments: result.payments, count: result.count, totalAmount: result.totalAmount });
   }),
 ];
 

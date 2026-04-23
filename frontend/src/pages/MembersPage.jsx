@@ -39,11 +39,21 @@ function MemberModal({ member, onClose, onSaved }) {
     : EMPTY_FORM
   )
   const [saving, setSaving] = useState(false)
+  const [emailError, setEmailError] = useState('')
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
+
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }))
+    if (k === 'email') setEmailError('')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (form.email && !isValidEmail(form.email)) {
+      setEmailError('Invalid email — please check the spelling.')
+      return
+    }
     setSaving(true)
     try {
       if (member) {
@@ -86,7 +96,18 @@ function MemberModal({ member, onClose, onSaved }) {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Email</Label>
-              <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="john@example.com" />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+                onBlur={() => {
+                  if (form.email && !isValidEmail(form.email)) setEmailError('Invalid email — please check the spelling.')
+                  else setEmailError('')
+                }}
+                placeholder="john@example.com"
+                className={emailError ? 'border-destructive' : ''}
+              />
+              {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Birthday</Label>

@@ -32,6 +32,7 @@ function RecordPaymentModal({ onClose, onSaved }) {
     paymentType: 'MONTHLY',
     month: now.getMonth() + 1,
     year: now.getFullYear(),
+    months: 1,
     amount: '4000',
     notes: '',
   })
@@ -60,21 +61,35 @@ function RecordPaymentModal({ onClose, onSaved }) {
     setForm((f) => ({
       ...f,
       memberId: m.id,
-      amount: f.paymentType === 'ADMISSION' ? '2500' : (m.membershipType ? String(MEMBERSHIP_PRICES[m.membershipType]) : f.amount),
+      amount: f.paymentType === 'ADMISSION' ? '2500' : (m.membershipType ? String(MEMBERSHIP_PRICES[m.membershipType] * f.months) : f.amount),
     }))
     setMemberResults([])
     setMemberSearch(m.fullName)
   }
 
+  const getMonthRange = () => {
+    if (form.months <= 1) return null
+    const totalIdx = (form.month - 1) + form.months - 1
+    const endMonth = (totalIdx % 12) + 1
+    const endYear = form.year + Math.floor(totalIdx / 12)
+    return `${MONTHS[form.month - 1]} ${form.year} → ${MONTHS[endMonth - 1]} ${endYear}`
+  }
+
   const set = (k, v) => {
     setForm((f) => {
       const updated = { ...f, [k]: v }
-      // Auto-fill amount when payment type changes
       if (k === 'paymentType') {
         if (v === 'ADMISSION') {
           updated.amount = '2500'
+          updated.months = 1
         } else if (selectedMember?.membershipType) {
-          updated.amount = String(MEMBERSHIP_PRICES[selectedMember.membershipType])
+          updated.amount = String(MEMBERSHIP_PRICES[selectedMember.membershipType] * f.months)
+        }
+      }
+      if (k === 'months') {
+        const n = Number(v)
+        if (f.paymentType !== 'ADMISSION' && selectedMember?.membershipType) {
+          updated.amount = String(MEMBERSHIP_PRICES[selectedMember.membershipType] * n)
         }
       }
       return updated
@@ -87,7 +102,13 @@ function RecordPaymentModal({ onClose, onSaved }) {
     setSaving(true)
     try {
       const res = await paymentService.record({ ...form, collectedById: user.id })
-      toast({ title: 'Payment recorded!', description: `Receipt: ${res.data.payment.receiptNumber}` })
+      const { payment, count, totalAmount } = res.data
+      toast({
+        title: count > 1 ? `${count} months recorded!` : 'Payment recorded!',
+        description: count > 1
+          ? `LKR ${Number(totalAmount).toLocaleString()} total · Receipt: ${payment.receiptNumber}`
+          : `Receipt: ${payment.receiptNumber}`,
+      })
       onSaved()
       onClose()
     } catch (err) {
@@ -155,23 +176,39 @@ function RecordPaymentModal({ onClose, onSaved }) {
             </div>
 
             {form.paymentType === 'MONTHLY' && (
-              <div className="grid grid-cols-2 gap-4">
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Month</Label>
+                    <Select value={form.month} onValueChange={(v) => set('month', Number(v))}>
+                      {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Year</Label>
+                    <Input type="number" value={form.year} onChange={(e) => set('year', Number(e.target.value))} min={2020} max={2050} />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
-                  <Label>Month</Label>
-                  <Select value={form.month} onValueChange={(v) => set('month', Number(v))}>
-                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                  <Label>Number of Months</Label>
+                  <Select value={form.months} onValueChange={(v) => set('months', Number(v))}>
+                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                      <option key={n} value={n}>{n} {n === 1 ? 'month' : 'months'}</option>
+                    ))}
                   </Select>
+                  {getMonthRange() && (
+                    <p className="text-xs text-muted-foreground mt-1">Covers: {getMonthRange()}</p>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Year</Label>
-                  <Input type="number" value={form.year} onChange={(e) => set('year', Number(e.target.value))} min={2020} max={2050} />
-                </div>
-              </div>
+              </>
             )}
 
             <div className="space-y-1.5">
-              <Label>Amount (LKR)</Label>
+              <Label>Amount (LKR){form.months > 1 ? ' — Total' : ''}</Label>
               <Input type="number" value={form.amount} onChange={(e) => set('amount', e.target.value)} required min={1} />
+              {form.months > 1 && form.amount && (
+                <p className="text-xs text-muted-foreground mt-1">LKR {Math.round(Number(form.amount) / form.months).toLocaleString()} per month</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
