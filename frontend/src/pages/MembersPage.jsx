@@ -96,17 +96,22 @@ function MemberModal({ member, onClose, onSaved }) {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => set('email', e.target.value)}
-                onBlur={() => {
-                  if (form.email && !isValidEmail(form.email)) setEmailError('Invalid email — please check the spelling.')
-                  else setEmailError('')
-                }}
-                placeholder="john@example.com"
-                className={emailError ? 'border-destructive' : ''}
-              />
+              <div className="flex">
+                <Input
+                  type="text"
+                  value={form.email ? form.email.replace(/@.*$/, '') : ''}
+                  onChange={(e) => {
+                    const local = e.target.value.replace(/@.*$/, '').replace(/\s/g, '')
+                    set('email', local ? `${local}@gmail.com` : '')
+                  }}
+                  onBlur={() => setEmailError('')}
+                  placeholder="john.doe"
+                  className={`rounded-r-none border-r-0 ${emailError ? 'border-destructive' : ''}`}
+                />
+                <span className="inline-flex items-center h-10 px-3 border border-input border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap select-none">
+                  @gmail.com
+                </span>
+              </div>
               {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             </div>
             <div className="space-y-1.5">

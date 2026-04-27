@@ -230,7 +230,22 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Email</Label>
-                  <Input type="email" value={newStaff.email} onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })} required placeholder="staff@focusfitness.lk" />
+                  <div className="flex">
+                    <Input
+                      type="text"
+                      value={newStaff.email ? newStaff.email.replace(/@.*$/, '') : ''}
+                      onChange={(e) => {
+                        const local = e.target.value.replace(/@.*$/, '').replace(/\s/g, '')
+                        setNewStaff({ ...newStaff, email: local ? `${local}@gmail.com` : '' })
+                      }}
+                      required
+                      placeholder="staff.name"
+                      className="rounded-r-none border-r-0"
+                    />
+                    <span className="inline-flex items-center h-10 px-3 border border-input border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap select-none">
+                      @gmail.com
+                    </span>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Password</Label>
@@ -283,12 +298,21 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label>Test Email Address</Label>
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-              />
+              <div className="flex">
+                <Input
+                  type="text"
+                  placeholder="you"
+                  value={testEmail ? testEmail.replace(/@.*$/, '') : ''}
+                  onChange={(e) => {
+                    const local = e.target.value.replace(/@.*$/, '').replace(/\s/g, '')
+                    setTestEmail(local ? `${local}@gmail.com` : '')
+                  }}
+                  className="rounded-r-none border-r-0"
+                />
+                <span className="inline-flex items-center h-10 px-3 border border-input border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap select-none">
+                  @gmail.com
+                </span>
+              </div>
             </div>
             <div className="grid gap-2">
               {[
