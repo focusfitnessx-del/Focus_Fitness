@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select } from '../components/ui/select'
 import { Textarea } from '../components/ui/textarea'
 import { formatDate, getInitials } from '../lib/utils'
-import { Plus, Search, Eye, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react'
 import { ConfirmModal } from '../components/ui/confirm-modal'
 
 const MEMBERSHIP_TYPE_LABELS = {
@@ -34,24 +34,24 @@ const EMPTY_FORM = {
 }
 
 function MemberModal({ member, onClose, onSaved }) {
+  const existingLocal = member?.email ? member.email.replace(/@.*$/, '') : ''
   const [form, setForm] = useState(member
     ? { ...member, birthday: member.birthday ? member.birthday.split('T')[0] : '', joinDate: member.joinDate ? member.joinDate.split('T')[0] : '', membershipType: member.membershipType || '' }
     : EMPTY_FORM
   )
+  const [emailConfirm, setEmailConfirm] = useState(existingLocal)
   const [saving, setSaving] = useState(false)
-  const [emailError, setEmailError] = useState('')
 
-  const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
+  const emailLocal = form.email ? form.email.replace(/@.*$/, '') : ''
+  const emailMatch = emailLocal === emailConfirm
+  const emailFilled = emailLocal.length > 0
 
-  const set = (k, v) => {
-    setForm((f) => ({ ...f, [k]: v }))
-    if (k === 'email') setEmailError('')
-  }
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (form.email && !isValidEmail(form.email)) {
-      setEmailError('Invalid email — please check the spelling.')
+    if (emailFilled && !emailMatch) {
+      toast({ title: 'Email mismatch', description: 'Email and Confirm Email do not match.', variant: 'destructive' })
       return
     }
     setSaving(true)
@@ -96,23 +96,50 @@ function MemberModal({ member, onClose, onSaved }) {
             </div>
             <div className="col-span-2 space-y-1.5">
               <Label>Email</Label>
-              <div className="flex">
-                <Input
+              <div className="flex items-center h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background">
+                <input
                   type="text"
-                  value={form.email ? form.email.replace(/@.*$/, '') : ''}
+                  value={emailLocal}
                   onChange={(e) => {
                     const local = e.target.value.replace(/@.*$/, '').replace(/\s/g, '')
                     set('email', local ? `${local}@gmail.com` : '')
                   }}
-                  onBlur={() => setEmailError('')}
                   placeholder="john.doe"
-                  className={`rounded-r-none border-r-0 ${emailError ? 'border-destructive' : ''}`}
+                  className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-muted-foreground"
                 />
-                <span className="inline-flex items-center h-10 px-3 border border-input border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap select-none">
-                  @gmail.com
-                </span>
+                <span className="text-muted-foreground/60 select-none pl-0.5">@gmail.com</span>
               </div>
-              {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label>Confirm Email</Label>
+              <div className={`flex items-center h-10 w-full rounded-md border bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-offset-2 ring-offset-background transition-colors ${
+                emailFilled
+                  ? emailMatch
+                    ? 'border-emerald-500 focus-within:ring-emerald-500'
+                    : 'border-destructive focus-within:ring-destructive'
+                  : 'border-input focus-within:ring-ring'
+              }`}>
+                <input
+                  type="text"
+                  value={emailConfirm}
+                  onChange={(e) => setEmailConfirm(e.target.value.replace(/@.*$/, '').replace(/\s/g, ''))}
+                  placeholder="john.doe"
+                  className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-muted-foreground"
+                />
+                <span className={`select-none pl-0.5 text-sm ${
+                  emailFilled ? (emailMatch ? 'text-emerald-500' : 'text-destructive') : 'text-muted-foreground/60'
+                }`}>@gmail.com</span>
+                {emailFilled && (
+                  emailMatch
+                    ? <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-2 shrink-0" />
+                    : <XCircle className="h-4 w-4 text-destructive ml-2 shrink-0" />
+                )}
+              </div>
+              {emailFilled && !emailMatch && (
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                  <XCircle className="h-3 w-3" /> Emails do not match
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Birthday</Label>
