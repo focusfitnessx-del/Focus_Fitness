@@ -10,8 +10,74 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select } from '../components/ui/select'
 import { Textarea } from '../components/ui/textarea'
 import { formatDate, getInitials } from '../lib/utils'
-import { Plus, Search, Eye, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react'
+import { Plus, Search, Eye, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Mail, User, Phone } from 'lucide-react'
 import { ConfirmModal } from '../components/ui/confirm-modal'
+
+// ── Email typo detection ─────────────────────────────────────────────────────
+const GMAIL_TYPOS = new Set([
+  // missing/swapped letters
+  'gmial.com','gmai.com','gmal.com','gamil.com','gnail.com','gmali.com',
+  'gmil.com','gimail.com','gmsil.com','gmaul.com','gmaio.com','gemail.com',
+  // extra letters
+  'gmails.com','gmaill.com','gmail.comm','gmailss.com','gmailc.com',
+  // gmils / gmls / gmls variants (the exact bug in the screenshot)
+  'gmils.com','gmls.com','gmails.com','gails.com','gmeil.com','gmeil.com',
+  'gmill.com','gmilss.com','gmisl.com','gmisl.com',
+  // wrong TLD
+  'gmail.cm','gmail.co','gmail.ocm','gmail.con','gmail.cim','gmail.vom',
+  'gmail.xom','gmail.net','gmail.org','gmail.io','gmail.lk','gmail.uk',
+  // missing dot
+  'gmailcom','gamilcom',
+  // typo combos
+  'fmail.com','hmail.com','ymail.com','zmail.com',
+])
+
+function detectEmailIssue(email) {
+  if (!email || !email.trim()) return null
+  const trimmed = email.trim()
+
+  // multiple @ signs
+  const atCount = (trimmed.match(/@/g) || []).length
+  if (atCount > 1) return { type: 'multi_at', message: 'Email should only have one "@" symbol.', fix: null }
+
+  const atIdx = trimmed.indexOf('@')
+  if (atIdx === -1) {
+    return { type: 'no_at', message: `Missing "@" — did you mean ${trimmed}@gmail.com?`, fix: `${trimmed}@gmail.com` }
+  }
+
+  const local = trimmed.slice(0, atIdx)
+  const domain = trimmed.slice(atIdx + 1).toLowerCase()
+
+  if (!domain) return { type: 'no_domain', message: 'Email is incomplete — missing domain after "@".', fix: null }
+
+  // no dot: @gmail → auto-fix to @gmail.com
+  if (!domain.includes('.')) {
+    return { type: 'no_tld', message: `Incomplete domain — did you mean @gmail.com?`, fix: `${local}@gmail.com` }
+  }
+
+  // trailing dot: @gmail.
+  if (domain.endsWith('.')) {
+    return { type: 'trailing_dot', message: `Domain is cut off — did you mean @gmail.com?`, fix: `${local}@gmail.com` }
+  }
+
+  // TLD too short (1 char): @gmail.c
+  const tld = domain.split('.').pop()
+  if (tld.length < 2) {
+    return { type: 'short_tld', message: `Domain ending looks incomplete — did you mean @gmail.com?`, fix: `${local}@gmail.com` }
+  }
+
+  // known typo domains (gmils, gmial, etc.)
+  if (GMAIL_TYPOS.has(domain)) {
+    return { type: 'typo', message: `Looks like a typo — did you mean @gmail.com?`, fix: `${local}@gmail.com` }
+  }
+
+  // only @gmail.com is accepted
+  if (domain !== 'gmail.com') {
+    return { type: 'wrong_domain', message: `Only @gmail.com is accepted. Did you mean ${local}@gmail.com?`, fix: `${local}@gmail.com` }
+  }
+
+  return null
+}
 
 const MEMBERSHIP_TYPE_LABELS = {
   STUDENT: 'Student',
@@ -34,26 +100,52 @@ const EMPTY_FORM = {
 }
 
 function MemberModal({ member, onClose, onSaved }) {
-  const existingLocal = member?.email ? member.email.replace(/@.*$/, '') : ''
   const [form, setForm] = useState(member
     ? { ...member, birthday: member.birthday ? member.birthday.split('T')[0] : '', joinDate: member.joinDate ? member.joinDate.split('T')[0] : '', membershipType: member.membershipType || '' }
     : EMPTY_FORM
   )
-  const [emailConfirm, setEmailConfirm] = useState(existingLocal)
   const [saving, setSaving] = useState(false)
+  const [emailIssue, setEmailIssue] = useState(null)      // layer 1: inline warning
+  const [correctedMsg, setCorrectedMsg] = useState('')     // layer 2: auto-correct flash
+  const [showConfirm, setShowConfirm] = useState(false)   // layer 3: pre-submit modal
 
-  const emailLocal = form.email ? form.email.replace(/@.*$/, '') : ''
-  const emailMatch = emailLocal === emailConfirm
-  const emailFilled = emailLocal.length > 0
+  const set = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }))
+    if (k === 'email') {
+      setCorrectedMsg('')
+      setEmailIssue(detectEmailIssue(v))
+    }
+  }
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  // Layer 2 — auto-correct on blur
+  const handleEmailBlur = () => {
+    const issue = detectEmailIssue(form.email)
+    if (issue?.fix) {
+      set('email', issue.fix)
+      setEmailIssue(null)
+      setCorrectedMsg(`Auto-corrected to ${issue.fix}`)
+      setTimeout(() => setCorrectedMsg(''), 4000)
+    }
+  }
 
-  const handleSubmit = async (e) => {
+  // Layer 3 — show confirmation modal before saving
+  const handleSubmit = (e) => {
     e.preventDefault()
-    if (emailFilled && !emailMatch) {
-      toast({ title: 'Email mismatch', description: 'Email and Confirm Email do not match.', variant: 'destructive' })
+    if (!form.email.trim()) {
+      setEmailIssue({ type: 'required', message: 'Email is required.', fix: null })
       return
     }
+    const issue = detectEmailIssue(form.email)
+    if (issue) {
+      // ANY issue (fixable or not) — block and show warning, never open confirm
+      setEmailIssue(issue)
+      return
+    }
+    setShowConfirm(true)
+  }
+
+  const doSave = async () => {
+    setShowConfirm(false)
     setSaving(true)
     try {
       if (member) {
@@ -73,6 +165,7 @@ function MemberModal({ member, onClose, onSaved }) {
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-3 pt-3 pb-20 sm:p-4">
       <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border shrink-0">
@@ -95,49 +188,38 @@ function MemberModal({ member, onClose, onSaved }) {
               <Input value={form.nic} onChange={(e) => set('nic', e.target.value)} placeholder="990123456V" />
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label>Email</Label>
-              <div className="flex items-center h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background">
-                <input
-                  type="text"
-                  value={emailLocal}
-                  onChange={(e) => {
-                    const local = e.target.value.replace(/@.*$/, '').replace(/\s/g, '')
-                    set('email', local ? `${local}@gmail.com` : '')
-                  }}
-                  placeholder="john.doe"
-                  className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-muted-foreground"
-                />
-                <span className="text-muted-foreground/60 select-none pl-0.5">@gmail.com</span>
-              </div>
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label>Confirm Email</Label>
-              <div className={`flex items-center h-10 w-full rounded-md border bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-offset-2 ring-offset-background transition-colors ${
-                emailFilled
-                  ? emailMatch
-                    ? 'border-emerald-500 focus-within:ring-emerald-500'
-                    : 'border-destructive focus-within:ring-destructive'
-                  : 'border-input focus-within:ring-ring'
-              }`}>
-                <input
-                  type="text"
-                  value={emailConfirm}
-                  onChange={(e) => setEmailConfirm(e.target.value.replace(/@.*$/, '').replace(/\s/g, ''))}
-                  placeholder="john.doe"
-                  className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-muted-foreground"
-                />
-                <span className={`select-none pl-0.5 text-sm ${
-                  emailFilled ? (emailMatch ? 'text-emerald-500' : 'text-destructive') : 'text-muted-foreground/60'
-                }`}>@gmail.com</span>
-                {emailFilled && (
-                  emailMatch
-                    ? <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-2 shrink-0" />
-                    : <XCircle className="h-4 w-4 text-destructive ml-2 shrink-0" />
-                )}
-              </div>
-              {emailFilled && !emailMatch && (
-                <p className="text-xs text-destructive flex items-center gap-1 mt-1">
-                  <XCircle className="h-3 w-3" /> Emails do not match
+              <Label>Email * <span className="text-muted-foreground font-normal text-xs">(Gmail only)</span></Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => set('email', e.target.value)}
+                onBlur={handleEmailBlur}
+                placeholder="john.doe@gmail.com"
+                required
+                className={emailIssue ? 'border-amber-500 focus-visible:ring-amber-500' : correctedMsg ? 'border-emerald-500 focus-visible:ring-emerald-500' : ''}
+              />
+              {/* Layer 1 — typo warning + one-tap fix */}
+              {emailIssue && (
+                <div className="flex items-start gap-2 mt-1.5 p-2.5 rounded-md bg-amber-500/10">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-amber-300">{emailIssue.message}</p>
+                    {emailIssue.fix && (
+                      <button
+                        type="button"
+                        onClick={() => { set('email', emailIssue.fix); setEmailIssue(null) }}
+                        className="mt-1 text-xs font-semibold text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                      >
+                        Fix to: {emailIssue.fix}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {/* Layer 2 — auto-correct flash */}
+              {correctedMsg && (
+                <p className="flex items-center gap-1.5 text-xs text-emerald-400 mt-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {correctedMsg}
                 </p>
               )}
             </div>
@@ -188,8 +270,53 @@ function MemberModal({ member, onClose, onSaved }) {
         </form>
       </div>
     </div>
+
+    {/* Layer 3 — Pre-submit confirmation modal */}
+    {showConfirm && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 px-4">
+        <div className="bg-card border border-border rounded-xl w-full max-w-sm shadow-2xl overflow-hidden">
+          <div className="p-5 border-b border-border">
+            <h3 className="font-bold text-base">Confirm Details</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Please check before saving — especially the email.</p>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Full Name</p>
+                <p className="text-sm font-medium truncate">{form.fullName}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
+              <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Phone</p>
+                <p className="text-sm font-medium">{form.phone}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <Mail className="h-4 w-4 text-amber-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs text-amber-400/80">Email — double-check this!</p>
+                <p className="text-sm font-semibold text-amber-300 break-all">{form.email || <span className="text-muted-foreground font-normal italic">No email</span>}</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 p-5 border-t border-border">
+            <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>
+              Fix it
+            </Button>
+            <Button className="flex-1" onClick={doSave}>
+              Looks correct
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
+
 
 export default function MembersPage() {
   const [members, setMembers] = useState([])
